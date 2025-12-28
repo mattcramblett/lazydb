@@ -6,7 +6,7 @@ use tracing::{debug, info};
 
 use crate::{
     action::Action,
-    components::{Component, fps::FpsCounter, home::Home},
+    components::{Component, text_editor::TextEditor},
     config::Config,
     tui::{Event, Tui},
 };
@@ -27,7 +27,7 @@ pub struct App {
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
     #[default]
-    Home,
+    EditQuery,
 }
 
 impl App {
@@ -36,11 +36,11 @@ impl App {
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(Home::new()), Box::new(FpsCounter::default())],
+            components: vec![Box::new(TextEditor::new())],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
-            mode: Mode::Home,
+            mode: Mode::EditQuery,
             last_tick_key_events: Vec::new(),
             action_tx,
             action_rx,
@@ -125,6 +125,10 @@ impl App {
                     action_tx.send(action.clone())?;
                 }
             }
+        }
+        if self.mode == Mode::EditQuery {
+            // When editing text, send all keys as KeyPress to the editor.
+            action_tx.send(Action::KeyPress(key))?;
         }
         Ok(())
     }

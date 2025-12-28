@@ -504,9 +504,9 @@ mod tests {
         assert_eq!(
             c.keybindings
                 .0
-                .get(&Mode::Home)
+                .get(&Mode::EditQuery)
                 .unwrap()
-                .get(&parse_key_sequence("<q>").unwrap_or_default())
+                .get(&parse_key_sequence("<Ctrl-c>").unwrap_or_default())
                 .unwrap(),
             &Action::Quit
         );
