@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
+use crate::app::Mode;
+
 #[derive(Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize)]
 pub enum Action {
     Tick,
@@ -12,10 +14,11 @@ pub enum Action {
     ClearScreen,
     Error(String),
     Help,
+    ChangeMode(Mode),
+    ExecuteQuery(String),
+    QueryResult(crate::database::QueryResult),
     NavDown,
     NavUp,
     NavLeft,
     NavRight,
-    ExecuteQuery(String),
-    QueryResult(crate::database::QueryResult),
 }

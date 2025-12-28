@@ -1,4 +1,4 @@
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::prelude::Rect;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -126,6 +126,17 @@ impl App {
                 if let Some(action) = keymap.get(&self.last_tick_key_events) {
                     info!("Got action: {action:?}");
                     action_tx.send(action.clone())?;
+                } else {
+                    // Key event does not match any keybind. Match on globally available keybinds.
+                    match key.code {
+                        KeyCode::F(1) => {
+                            action_tx.send(Action::ChangeMode(Mode::EditQuery))?;
+                        },
+                        KeyCode::F(2) => {
+                            action_tx.send(Action::ChangeMode(Mode::ExploreResults))?;
+                        },
+                        _ => {}
+                    }
                 }
             }
         }
@@ -147,6 +158,7 @@ impl App {
                 Action::ClearScreen => tui.terminal.clear()?,
                 Action::Resize(w, h) => self.handle_resize(tui, w, h)?,
                 Action::Render => self.render(tui)?,
+                Action::ChangeMode(new_mode) => self.mode = new_mode,
                 Action::ExecuteQuery(query) => {
                     let tx = self.action_tx.clone();
                     tokio::spawn(async move {

@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Layout},
     prelude::Rect,
     style::{Color, Style, Stylize},
-    widgets::{Block, BorderType, Cell, Row, Table, TableState},
+    widgets::{Block, BorderType, Cell, Row, StatefulWidget, Table, TableState},
 };
 
 use crate::{action::Action, components::Component, config::Config};
@@ -49,7 +49,7 @@ impl Component for ResultsTable {
             Action::NavRight => self.state.select_next_column(),
             Action::QueryResult(result) => {
                 self.set_data(result.columns, result.rows);
-            }
+            },
             _ => {}
         }
         Ok(None)
@@ -68,7 +68,8 @@ impl Component for ResultsTable {
     fn draw(&mut self, frame: &mut ratatui::Frame, area: Rect) -> color_eyre::Result<()> {
         let [_, bottom] =
             Layout::vertical([Constraint::Percentage(50), Constraint::Min(0)]).areas(area);
-        frame.render_widget(&self.internal, bottom);
+        let table = &self.internal;
+        table.render(bottom, frame.buffer_mut(), &mut self.state.clone());
         Ok(())
     }
 }
@@ -112,6 +113,7 @@ impl ResultsTable {
             .cell_highlight_style(Style::new().reversed().yellow())
             .highlight_symbol("▷ ");
 
+        self.state = TableState::default();
         self.internal = table;
     }
 }

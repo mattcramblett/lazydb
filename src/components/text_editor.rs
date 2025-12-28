@@ -7,13 +7,14 @@ use ratatui::{
 use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::TextArea;
 
-use crate::{action::Action, components::Component, config::Config};
+use crate::{action::Action, app::Mode, components::Component, config::Config};
 
 /// Text editor for SQL statements.
 pub struct TextEditor<'a> {
     internal: TextArea<'a>,
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
+    focused: bool,
 }
 
 impl<'a> Default for TextEditor<'a> {
@@ -34,6 +35,7 @@ impl<'a> Default for TextEditor<'a> {
             internal,
             command_tx: Default::default(),
             config: Default::default(),
+            focused: true,
         }
     }
 }
@@ -45,6 +47,15 @@ impl<'a> TextEditor<'a> {
 }
 
 impl Component for TextEditor<'_> {
+    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
+        match action {
+            Action::ChangeMode(Mode::EditQuery) => self.focused = true,
+            Action::ChangeMode(_) => self.focused = false,
+            _ => {}
+        }
+        Ok(None)
+    }
+
     fn handle_key_event(&mut self, key: KeyEvent) -> color_eyre::Result<Option<Action>> {
         match key.code {
             // ctrl+r runs the query in the editor
@@ -52,9 +63,11 @@ impl Component for TextEditor<'_> {
                 let query = self.internal.clone().into_lines().join("\n");
                 Ok(Some(Action::ExecuteQuery(query)))
             }
-            // any other key we accept as editor input
+            // any other key we accept as editor input, only if focused
             _ => {
-                self.internal.input(key);
+                if self.focused {
+                    self.internal.input(key);
+                }
                 Ok(None)
             }
         }

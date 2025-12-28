@@ -5,6 +5,8 @@
       "<Ctrl-z>": "Suspend", // Suspend the application
     },
     "ExploreResults": {
+      "<Ctrl-c>": "Quit",
+      "<Ctrl-z>": "Suspend",
       "j": "NavDown",
       "k": "NavUp",
       "h": "NavLeft",
