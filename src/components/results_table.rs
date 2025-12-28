@@ -1,11 +1,12 @@
+use color_eyre::owo_colors::OwoColorize;
 use ratatui::{
     layout::{Alignment, Constraint, Layout},
     prelude::Rect,
-    style::{Color, Style, Stylize},
+    style::{Color, Style, Styled, Stylize},
     widgets::{Block, BorderType, Cell, Row, StatefulWidget, Table, TableState},
 };
 
-use crate::{action::Action, components::Component, config::Config};
+use crate::{action::Action, app::Mode, components::Component, config::Config};
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug)]
@@ -20,6 +21,8 @@ pub struct ResultsTable {
     internal: Table<'static>,
     /// Table state determining selections, etc.
     state: TableState,
+    /// Whether this table is in focus
+    focused: bool,
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
 }
@@ -32,6 +35,7 @@ impl Default for ResultsTable {
             widths: Default::default(), // TODO: calculate column widths
             state: Default::default(),
             internal: Default::default(),
+            focused: false,
             command_tx: Default::default(),
             config: Default::default(),
         };
@@ -49,7 +53,9 @@ impl Component for ResultsTable {
             Action::NavRight => self.state.select_next_column(),
             Action::QueryResult(result) => {
                 self.set_data(result.columns, result.rows);
-            },
+            }
+            Action::ChangeMode(Mode::ExploreResults) => self.update_focused(true),
+            Action::ChangeMode(_) => self.update_focused(false),
             _ => {}
         }
         Ok(None)
@@ -75,6 +81,15 @@ impl Component for ResultsTable {
 }
 
 impl ResultsTable {
+    /// Update the Block style when changing focus. This normally would be done inside `draw`, but
+    /// that would require cloning the internal Table. For performance reasons, avoid cloning
+    /// unless it's really necessary. This is a bit of a smell and may need revisited.
+    fn update_focused(&mut self, focused: bool) {
+        self.focused = focused;
+        let block = self.make_block();
+        self.internal = self.internal.clone().block(block);
+    }
+
     /// Update the internal result data for display, and rebuild the table.
     fn set_data(&mut self, new_cols: Vec<String>, new_rows: Vec<Vec<String>>) {
         self.columns = new_cols;
@@ -97,15 +112,9 @@ impl ResultsTable {
             .iter()
             .map(|r| Row::new(r.iter().map(|val| Cell::from(val.clone()))));
 
-        let block = Block::bordered()
-            .title("results")
-            .style(Style::new().fg(Color::LightBlue))
-            .title_alignment(Alignment::Center)
-            .border_type(BorderType::Plain);
-
         let table = Table::new(table_rows, self.widths.clone())
             .header(header)
-            .block(block)
+            .block(self.make_block())
             .column_spacing(1)
             .style(Color::Blue)
             .row_highlight_style(Style::new().on_black().bold())
@@ -115,5 +124,21 @@ impl ResultsTable {
 
         self.state = TableState::default();
         self.internal = table;
+    }
+
+    fn make_block<'a>(&self) -> Block<'a> {
+        Block::bordered()
+            .title("results [f2]")
+            .style(Style::new().fg(if self.focused {
+                Color::Cyan
+            } else {
+                Color::Blue
+            }))
+            .title_alignment(Alignment::Center)
+            .border_type(if self.focused {
+                BorderType::Thick
+            } else {
+                BorderType::Plain
+            })
     }
 }

@@ -24,13 +24,6 @@ impl<'a> Default for TextEditor<'a> {
         let style = Style::default().bg(Color::DarkGray).fg(Color::LightBlue);
         internal.set_line_number_style(style);
 
-        let block = Block::bordered()
-            .title("lazydb")
-            .style(Style::new().fg(Color::LightBlue))
-            .title_alignment(Alignment::Center)
-            .border_type(BorderType::Thick);
-        internal.set_block(block);
-
         Self {
             internal,
             command_tx: Default::default(),
@@ -88,6 +81,21 @@ impl Component for TextEditor<'_> {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
+        let block = Block::bordered()
+            .title("lazydb")
+            .style(Style::new().fg(if self.focused {
+                Color::Cyan
+            } else {
+                Color::Blue
+            }))
+            .title_alignment(Alignment::Center)
+            .border_type(if self.focused {
+                BorderType::Thick
+            } else {
+                BorderType::Plain
+            });
+        self.internal.set_block(block);
+
         let [top, _] =
             Layout::vertical([Constraint::Percentage(50), Constraint::Min(0)]).areas(area);
         frame.render_widget(&self.internal, top);
