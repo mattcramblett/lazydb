@@ -1,5 +1,6 @@
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    layout::Alignment,
+    layout::{Alignment, Constraint, Layout},
     style::{Color, Style},
     widgets::{Block, BorderType},
 };
@@ -44,14 +45,19 @@ impl<'a> TextEditor<'a> {
 }
 
 impl Component for TextEditor<'_> {
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
-        match action {
-            Action::KeyPress(key_event) => {
-                self.internal.input(key_event);
-            },
-            _ => {}
+    fn handle_key_event(&mut self, key: KeyEvent) -> color_eyre::Result<Option<Action>> {
+        match key.code {
+            // ctrl+r runs the query in the editor
+            KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
+                let query = self.internal.clone().into_lines().join("\n");
+                Ok(Some(Action::ExecuteQuery(query)))
+            }
+            // any other key we accept as editor input
+            _ => {
+                self.internal.input(key);
+                Ok(None)
+            }
         }
-        Ok(None)
     }
 
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> color_eyre::Result<()> {
@@ -69,7 +75,9 @@ impl Component for TextEditor<'_> {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
-        frame.render_widget(&self.internal, area);
+        let [top, _] =
+            Layout::vertical([Constraint::Percentage(50), Constraint::Min(0)]).areas(area);
+        frame.render_widget(&self.internal, top);
         Ok(())
     }
 }

@@ -6,7 +6,7 @@ use tracing::{debug, info};
 
 use crate::{
     action::Action,
-    components::{Component, text_editor::TextEditor},
+    components::{Component, text_editor::TextEditor, results_table::ResultsTable},
     config::Config,
     tui::{Event, Tui},
 };
@@ -26,8 +26,11 @@ pub struct App {
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
+    /// Edit text of SQL query
     #[default]
     EditQuery,
+    /// Navigate the result table
+    ExploreResults
 }
 
 impl App {
@@ -36,7 +39,7 @@ impl App {
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(TextEditor::new())],
+            components: vec![Box::new(TextEditor::new()), Box::new(ResultsTable::default())],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
@@ -126,10 +129,6 @@ impl App {
                 }
             }
         }
-        if self.mode == Mode::EditQuery {
-            // When editing text, send all keys as KeyPress to the editor.
-            action_tx.send(Action::KeyPress(key))?;
-        }
         Ok(())
     }
 
@@ -138,7 +137,7 @@ impl App {
             if action != Action::Tick && action != Action::Render {
                 debug!("{action:?}");
             }
-            match action {
+            match action.clone() {
                 Action::Tick => {
                     self.last_tick_key_events.drain(..);
                 }
@@ -148,6 +147,16 @@ impl App {
                 Action::ClearScreen => tui.terminal.clear()?,
                 Action::Resize(w, h) => self.handle_resize(tui, w, h)?,
                 Action::Render => self.render(tui)?,
+                Action::ExecuteQuery(query) => {
+                    let tx = self.action_tx.clone();
+                    tokio::spawn(async move {
+                        let res = crate::database::get_query_result(query.clone()).await;
+                        match res {
+                            Ok(query_result) => tx.send(Action::QueryResult(query_result)),
+                            Err(_db_error) => Ok(()) // TODO: report error
+                        }
+                    });
+                }
                 _ => {}
             }
             for component in self.components.iter_mut() {

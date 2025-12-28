@@ -11,6 +11,7 @@ mod config;
 mod errors;
 mod logging;
 mod tui;
+mod database;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {

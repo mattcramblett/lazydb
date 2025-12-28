@@ -1,4 +1,3 @@
-use crossterm::event::KeyEvent;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -13,5 +12,10 @@ pub enum Action {
     ClearScreen,
     Error(String),
     Help,
-    KeyPress(KeyEvent),
+    NavDown,
+    NavUp,
+    NavLeft,
+    NavRight,
+    ExecuteQuery(String),
+    QueryResult(crate::database::QueryResult),
 }
