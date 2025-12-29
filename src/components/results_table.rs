@@ -63,11 +63,8 @@ impl Component for ResultsTable {
         &mut self,
         event: crate::app_event::AppEvent,
     ) -> color_eyre::Result<Option<Action>> {
-        match event {
-            AppEvent::QueryResult(result) => {
-                self.set_data(result.columns, result.rows);
-            }
-            _ => {}
+        if let AppEvent::QueryResult(result) = event {
+            self.set_data(result.columns, result.rows);
         }
         Ok(None)
     }
