@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 use crate::{
-    action::{self, Action},
+    action::Action,
     app_event::{AppEvent, UserMessage},
     components::{
         Component, connection_menu::ConnectionMenu, messages::Messages,

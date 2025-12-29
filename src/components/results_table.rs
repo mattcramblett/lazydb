@@ -1,8 +1,7 @@
-use color_eyre::owo_colors::OwoColorize;
 use ratatui::{
-    layout::{Alignment, Constraint, Layout},
+    layout::{Alignment, Constraint},
     prelude::Rect,
-    style::{Color, Style, Styled, Stylize},
+    style::{Color, Style, Stylize},
     widgets::{Block, BorderType, Cell, Row, StatefulWidget, Table, TableState},
 };
 
