@@ -17,6 +17,7 @@ pub enum Action {
     ChangeMode(Mode),
     ExecuteQuery(String),
     QueryResult(crate::database::QueryResult),
+    DisplaySqlError(String),
     NavDown,
     NavUp,
     NavLeft,

@@ -1,12 +1,17 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::prelude::Rect;
+use ratatui::{
+    layout::{self, Constraint, Layout},
+    prelude::Rect,
+};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::{debug, info};
 
 use crate::{
     action::Action,
-    components::{Component, text_editor::TextEditor, results_table::ResultsTable},
+    components::{
+        Component, messages::Messages, results_table::ResultsTable, text_editor::TextEditor,
+    },
     config::Config,
     tui::{Event, Tui},
 };
@@ -30,7 +35,7 @@ pub enum Mode {
     #[default]
     EditQuery,
     /// Navigate the result table
-    ExploreResults
+    ExploreResults,
 }
 
 impl App {
@@ -39,7 +44,11 @@ impl App {
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(TextEditor::new()), Box::new(ResultsTable::default())],
+            components: vec![
+                Box::new(TextEditor::new()),
+                Box::new(ResultsTable::default()),
+                Box::new(Messages::default()),
+            ],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
@@ -131,10 +140,10 @@ impl App {
                     match key.code {
                         KeyCode::F(1) => {
                             action_tx.send(Action::ChangeMode(Mode::EditQuery))?;
-                        },
+                        }
                         KeyCode::F(2) => {
                             action_tx.send(Action::ChangeMode(Mode::ExploreResults))?;
-                        },
+                        }
                         _ => {}
                     }
                 }
@@ -165,7 +174,11 @@ impl App {
                         let res = crate::database::get_query_result(query.clone()).await;
                         match res {
                             Ok(query_result) => tx.send(Action::QueryResult(query_result)),
-                            Err(_db_error) => Ok(()) // TODO: report error
+                            Err(db_error) => tx.send(Action::DisplaySqlError(
+                                db_error
+                                    .as_db_error()
+                                    .map_or(String::from("Unknown error"), |e| e.to_string()),
+                            )),
                         }
                     });
                 }
@@ -188,8 +201,14 @@ impl App {
 
     fn render(&mut self, tui: &mut Tui) -> color_eyre::Result<()> {
         tui.draw(|frame| {
-            for component in self.components.iter_mut() {
-                if let Err(err) = component.draw(frame, frame.area()) {
+            let layout = Layout::vertical([
+                Constraint::Percentage(45),
+                Constraint::Percentage(45),
+                Constraint::Percentage(10),
+            ])
+            .split(frame.area());
+            for (i, component) in self.components.iter_mut().enumerate() {
+                if let Err(err) = component.draw(frame, layout[i]) {
                     let _ = self
                         .action_tx
                         .send(Action::Error(format!("Failed to draw: {:?}", err)));

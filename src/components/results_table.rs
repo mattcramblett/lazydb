@@ -72,10 +72,8 @@ impl Component for ResultsTable {
     }
 
     fn draw(&mut self, frame: &mut ratatui::Frame, area: Rect) -> color_eyre::Result<()> {
-        let [_, bottom] =
-            Layout::vertical([Constraint::Percentage(50), Constraint::Min(0)]).areas(area);
         let table = &self.internal;
-        table.render(bottom, frame.buffer_mut(), &mut self.state.clone());
+        table.render(area, frame.buffer_mut(), &mut self.state.clone());
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    layout::{Alignment, Constraint, Layout},
+    layout::{self, Alignment, Constraint, Layout},
     style::{Color, Style},
     widgets::{Block, BorderType},
 };
@@ -96,9 +96,7 @@ impl Component for TextEditor<'_> {
             });
         self.internal.set_block(block);
 
-        let [top, _] =
-            Layout::vertical([Constraint::Percentage(50), Constraint::Min(0)]).areas(area);
-        frame.render_widget(&self.internal, top);
+        frame.render_widget(&self.internal, area);
         Ok(())
     }
 }
