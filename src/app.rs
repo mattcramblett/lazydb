@@ -9,7 +9,7 @@ use tracing::{debug, error, info};
 
 use crate::{
     action::Action,
-    app_event::{AppEvent, UserMessage},
+    app_event::{AppEvent, MessageType},
     components::{
         Component, connection_menu::ConnectionMenu, messages::Messages,
         results_table::ResultsTable, text_editor::TextEditor,
@@ -187,20 +187,23 @@ impl App {
                         let config = db_config.clone();
                         let event_tx = self.event_tx.clone();
                         tokio::spawn(async move {
-                            event_tx.send(AppEvent::UserMessage(UserMessage::Info(
+                            event_tx.send(AppEvent::UserMessage(
+                                MessageType::Info,
                                 String::from("Connecting..."),
-                            )))?;
+                            ))?;
                             let connect_result = DbConnection::create(config).await;
                             match connect_result {
                                 Ok(connection) => {
                                     event_tx.send(AppEvent::DbConnectionEstablished(connection))?;
-                                    event_tx.send(AppEvent::UserMessage(UserMessage::Info(
+                                    event_tx.send(AppEvent::UserMessage(
+                                        MessageType::Info,
                                         String::from("Connected!"),
-                                    )))
+                                    ))
                                 }
-                                Err(e) => event_tx.send(AppEvent::UserMessage(UserMessage::Error(
+                                Err(e) => event_tx.send(AppEvent::UserMessage(
+                                    MessageType::Error,
                                     format!("{:?}", e),
-                                ))),
+                                )),
                             }
                         });
                     } else {
@@ -215,22 +218,19 @@ impl App {
                             let res = connection.get_query_result(query.clone()).await;
                             match res {
                                 Ok(query_result) => tx.send(AppEvent::QueryResult(query_result)),
-                                Err(db_error) => {
-                                    tx.send(AppEvent::UserMessage(UserMessage::Error(
-                                        db_error
-                                            .as_db_error()
-                                            .map_or(String::from("Unknown error"), |e| {
-                                                e.to_string()
-                                            }),
-                                    )))
-                                }
+                                Err(db_error) => tx.send(AppEvent::UserMessage(
+                                    MessageType::Error,
+                                    db_error
+                                        .as_db_error()
+                                        .map_or(String::from("Unknown error"), |e| e.to_string()),
+                                )),
                             }
                         });
                     } else {
-                        self.event_tx
-                            .send(AppEvent::UserMessage(UserMessage::Error(String::from(
-                                "No connection established.",
-                            ))))?;
+                        self.event_tx.send(AppEvent::UserMessage(
+                            MessageType::Error,
+                            String::from("No connection established."),
+                        ))?;
                     }
                 }
                 _ => {}
@@ -246,8 +246,17 @@ impl App {
 
     fn handle_app_events(&mut self) -> color_eyre::Result<()> {
         while let Ok(app_event) = self.event_rx.try_recv() {
-            if let AppEvent::DbConnectionEstablished(connection) = app_event.clone() {
-                self.db_connection = Some(connection);
+            match app_event.clone() {
+                AppEvent::DbConnectionEstablished(connection) => {
+                    self.db_connection = Some(connection)
+                }
+                AppEvent::QueryResult(result) => {
+                    self.event_tx.clone().send(AppEvent::UserMessage(
+                        MessageType::Info,
+                        format!("{} results", result.rows.len()),
+                    ))?
+                }
+                _ => {}
             }
             for component in self.components.iter_mut() {
                 if let Some(action) = component.handle_app_events(app_event.clone())? {

@@ -1,6 +1,6 @@
 use crate::{
     action::Action,
-    app_event::{AppEvent, UserMessage},
+    app_event::{AppEvent, MessageType},
     components::Component,
     config::Config,
 };
@@ -16,7 +16,7 @@ use tokio::sync::mpsc::UnboundedSender;
 pub struct Messages {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
-    text: Option<String>,
+    message: Option<(MessageType, String)>,
 }
 
 impl Component for Messages {
@@ -25,15 +25,20 @@ impl Component for Messages {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
-        if let Some(message) = self.text.clone() {
+        if let Some((msg_type, message)) = self.message.clone() {
+            let (title, color) = match msg_type {
+                MessageType::Error => ("error", Color::Red),
+                MessageType::Info => ("messages", Color::Cyan),
+            };
             let block = Block::bordered()
-                .title("error")
-                .style(Style::new().fg(Color::Red))
+                .title(title)
+                .style(Style::new().fg(color))
                 .title_alignment(Alignment::Center)
                 .border_type(BorderType::Thick);
             let paragraph = Paragraph::new(message).block(block);
             frame.render_widget(paragraph, area);
         } else {
+            // empty state
             let block = Block::bordered()
                 .title("messages")
                 .style(Style::new().fg(Color::Blue))
@@ -47,7 +52,7 @@ impl Component for Messages {
 
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         match action {
-            Action::ExecuteQuery(_) | Action::OpenDbConnection(_) => self.text = None,
+            Action::ExecuteQuery(_) | Action::OpenDbConnection(_) => self.message = None,
             _ => {}
         }
         Ok(None)
@@ -57,10 +62,8 @@ impl Component for Messages {
         &mut self,
         event: crate::app_event::AppEvent,
     ) -> color_eyre::Result<Option<Action>> {
-        if let AppEvent::UserMessage(msg) = event {
-            match msg {
-                UserMessage::Error(text) | UserMessage::Info(text) => self.text = Some(text),
-            }
+        if let AppEvent::UserMessage(msg_type, msg) = event {
+            self.message = Some((msg_type, msg));
         };
         Ok(None)
     }

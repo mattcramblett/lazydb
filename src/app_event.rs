@@ -6,11 +6,11 @@ use crate::database::connection::{DbConnection, QueryResult};
 pub enum AppEvent {
     DbConnectionEstablished(DbConnection),
     QueryResult(QueryResult),
-    UserMessage(UserMessage),
+    UserMessage(MessageType, String),
 }
 
 #[derive(Clone)]
-pub enum UserMessage {
-    Error(String),
-    Info(String),
+pub enum MessageType {
+    Error,
+    Info,
 }
