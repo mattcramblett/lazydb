@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    layout::{self, Alignment, Constraint, Layout},
+    layout::{Alignment},
     style::{Color, Style},
     widgets::{Block, BorderType},
 };

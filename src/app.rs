@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
-    layout::{self, Constraint, Layout},
+    layout::{Constraint, Layout},
     prelude::Rect,
 };
 use serde::{Deserialize, Serialize};
@@ -8,12 +8,9 @@ use tokio::sync::mpsc;
 use tracing::{debug, info};
 
 use crate::{
-    action::Action,
-    components::{
-        Component, messages::Messages, results_table::ResultsTable, text_editor::TextEditor,
-    },
-    config::Config,
-    tui::{Event, Tui},
+    action::Action, components::{
+        messages::Messages, results_table::ResultsTable, text_editor::TextEditor, Component
+    }, config::Config, database::connection::DbConnection, tui::{Event, Tui}
 };
 
 pub struct App {
@@ -24,6 +21,7 @@ pub struct App {
     should_quit: bool,
     should_suspend: bool,
     mode: Mode,
+    db_connection: Option<DbConnection>,
     last_tick_key_events: Vec<KeyEvent>,
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
@@ -53,6 +51,7 @@ impl App {
             should_suspend: false,
             config: Config::new()?,
             mode: Mode::EditQuery,
+            db_connection: None,
             last_tick_key_events: Vec::new(),
             action_tx,
             action_rx,
@@ -169,18 +168,19 @@ impl App {
                 Action::Render => self.render(tui)?,
                 Action::ChangeMode(new_mode) => self.mode = new_mode,
                 Action::ExecuteQuery(query) => {
-                    let tx = self.action_tx.clone();
-                    tokio::spawn(async move {
-                        let res = crate::database::get_query_result(query.clone()).await;
-                        match res {
-                            Ok(query_result) => tx.send(Action::QueryResult(query_result)),
-                            Err(db_error) => tx.send(Action::DisplaySqlError(
-                                db_error
-                                    .as_db_error()
-                                    .map_or(String::from("Unknown error"), |e| e.to_string()),
-                            )),
-                        }
-                    });
+                    // TODO: use db connection
+                    // let tx = self.action_tx.clone();
+                    // tokio::spawn(async move {
+                    //     let res = crate::db::get_query_result(query.clone()).await;
+                    //     match res {
+                    //         Ok(query_result) => tx.send(Action::QueryResult(query_result)),
+                    //         Err(db_error) => tx.send(Action::DisplaySqlError(
+                    //             db_error
+                    //                 .as_db_error()
+                    //                 .map_or(String::from("Unknown error"), |e| e.to_string()),
+                    //         )),
+                    //     }
+                    // });
                 }
                 _ => {}
             }
