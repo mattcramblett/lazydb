@@ -6,7 +6,9 @@ use ratatui::{
     widgets::{Block, BorderType, Cell, Row, StatefulWidget, Table, TableState},
 };
 
-use crate::{action::Action, app::Mode, components::Component, config::Config};
+use crate::{
+    action::Action, app::Mode, app_event::AppEvent, components::Component, config::Config,
+};
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug)]
@@ -51,11 +53,21 @@ impl Component for ResultsTable {
             Action::NavUp => self.state.select_previous(),
             Action::NavLeft => self.state.select_previous_column(),
             Action::NavRight => self.state.select_next_column(),
-            Action::QueryResult(result) => {
-                self.set_data(result.columns, result.rows);
-            }
             Action::ChangeMode(Mode::ExploreResults) => self.update_focused(true),
             Action::ChangeMode(_) => self.update_focused(false),
+            _ => {}
+        }
+        Ok(None)
+    }
+
+    fn handle_app_events(
+        &mut self,
+        event: crate::app_event::AppEvent,
+    ) -> color_eyre::Result<Option<Action>> {
+        match event {
+            AppEvent::QueryResult(result) => {
+                self.set_data(result.columns, result.rows);
+            }
             _ => {}
         }
         Ok(None)

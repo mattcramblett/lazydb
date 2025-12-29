@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
-use crate::app::Mode;
+use crate::{app::Mode};
 
+/// Actions are user-driven events, which differ from AppEvents
 #[derive(Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize)]
 pub enum Action {
     Tick,
@@ -15,10 +16,9 @@ pub enum Action {
     Error(String),
     Help,
     ChangeMode(Mode),
-    SelectConnection,
+    MakeSelection,
+    OpenDbConnection(String),
     ExecuteQuery(String),
-    QueryResult(crate::database::connection::QueryResult),
-    DisplaySqlError(String),
     NavDown,
     NavUp,
     NavLeft,

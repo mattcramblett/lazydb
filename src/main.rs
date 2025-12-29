@@ -4,6 +4,7 @@ use cli::Cli;
 use crate::app::App;
 
 mod action;
+mod app_event;
 mod app;
 mod cli;
 mod components;

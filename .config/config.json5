@@ -7,7 +7,7 @@
       "j": "NavDown",
       "up": "NavUp",
       "down": "NavDown",
-      "enter": "SelectConnection",
+      "enter": "MakeSelection",
     },
     "EditQuery": {
       "<Ctrl-c>": "Quit", // Quit the application

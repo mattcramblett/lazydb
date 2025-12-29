@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::{sync::Arc, time::SystemTime};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -13,8 +13,9 @@ pub struct ConnectionConfig {
     database_name: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct DbConnection {
-    db_client: Client,
+    db_client: Arc<Client>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,9 +29,17 @@ impl DbConnection {
     pub async fn create(config: ConnectionConfig) -> color_eyre::Result<Self> {
         let (client, connection) =
             tokio_postgres::connect(&Self::make_connection_string(&config)?, NoTls).await?;
-        connection.await?;
 
-        Ok(Self { db_client: client })
+        // The connection object performs the actual communication with the database,
+        // so spawn it off to run on its own.
+        tokio::spawn(async move {
+            // TODO: tear this down when disconnecting.
+            if let Err(e) = connection.await {
+                eprintln!("connection error: {}", e);
+            }
+        });
+
+        Ok(Self { db_client: Arc::new(client) })
     }
 
     /// Returns a result from the given query

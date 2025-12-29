@@ -5,7 +5,7 @@ use ratatui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{action::Action, config::Config, tui::Event};
+use crate::{action::Action, app_event::AppEvent, config::Config, tui::Event};
 
 pub mod fps;
 pub mod home;
@@ -75,6 +75,20 @@ pub trait Component {
         };
         Ok(action)
     }
+    /// Handle incoming app events and produce actions if necessary.
+    ///
+    /// # Arguments
+    ///
+    /// * `event` - An optional event to be processed.
+    ///
+    /// # Returns
+    ///
+    /// * [`color_eyre::Result<Option<Action>>`] - An action to be processed or none.
+    fn handle_app_events(&mut self, event: AppEvent) -> color_eyre::Result<Option<Action>> {
+        let _ = event; // to appease clippy
+        Ok(None)
+    }
+
     /// Handle key events and produce actions if necessary.
     ///
     /// # Arguments

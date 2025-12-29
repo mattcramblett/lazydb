@@ -5,10 +5,11 @@ use ratatui::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use crate::{
-    action::Action,
+    action::{self, Action},
+    app_event::{AppEvent, UserMessage},
     components::{
         Component, connection_menu::ConnectionMenu, messages::Messages,
         results_table::ResultsTable, text_editor::TextEditor,
@@ -30,6 +31,8 @@ pub struct App {
     last_tick_key_events: Vec<KeyEvent>,
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
+    event_tx: mpsc::UnboundedSender<AppEvent>,
+    event_rx: mpsc::UnboundedReceiver<AppEvent>,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -46,6 +49,7 @@ pub enum Mode {
 impl App {
     pub fn new(tick_rate: f64, frame_rate: f64) -> color_eyre::Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
+        let (event_tx, event_rx) = mpsc::unbounded_channel();
         Ok(Self {
             tick_rate,
             frame_rate,
@@ -63,6 +67,8 @@ impl App {
             last_tick_key_events: Vec::new(),
             action_tx,
             action_rx,
+            event_tx,
+            event_rx,
         })
     }
 
@@ -86,6 +92,7 @@ impl App {
         let action_tx = self.action_tx.clone();
         loop {
             self.handle_events(&mut tui).await?;
+            self.handle_app_events()?;
             self.handle_actions(&mut tui)?;
             if self.should_suspend {
                 tui.suspend()?;
@@ -175,25 +182,75 @@ impl App {
                 Action::Resize(w, h) => self.handle_resize(tui, w, h)?,
                 Action::Render => self.render(tui)?,
                 Action::ChangeMode(new_mode) => self.mode = new_mode,
+                Action::OpenDbConnection(connection_name) => {
+                    if let Some(db_config) = self.config.db_connections.0.get(&connection_name) {
+                        let config = db_config.clone();
+                        let event_tx = self.event_tx.clone();
+                        tokio::spawn(async move {
+                            event_tx.send(AppEvent::UserMessage(UserMessage::Info(
+                                String::from("Connecting..."),
+                            )))?;
+                            let connect_result = DbConnection::create(config).await;
+                            match connect_result {
+                                Ok(connection) => {
+                                    event_tx.send(AppEvent::DbConnectionEstablished(connection))?;
+                                    event_tx.send(AppEvent::UserMessage(UserMessage::Info(
+                                        String::from("Connected!"),
+                                    )))
+                                }
+                                Err(e) => event_tx.send(AppEvent::UserMessage(UserMessage::Error(
+                                    format!("{:?}", e),
+                                ))),
+                            }
+                        });
+                    } else {
+                        error!("Attempted to open an unknown connection");
+                    }
+                }
                 Action::ExecuteQuery(query) => {
-                    // TODO: use db connection
-                    // let tx = self.action_tx.clone();
-                    // tokio::spawn(async move {
-                    //     let res = crate::db::get_query_result(query.clone()).await;
-                    //     match res {
-                    //         Ok(query_result) => tx.send(Action::QueryResult(query_result)),
-                    //         Err(db_error) => tx.send(Action::DisplaySqlError(
-                    //             db_error
-                    //                 .as_db_error()
-                    //                 .map_or(String::from("Unknown error"), |e| e.to_string()),
-                    //         )),
-                    //     }
-                    // });
+                    // When a query is executed, report the result back via an app event.
+                    let tx = self.event_tx.clone();
+                    if let Some(connection) = self.db_connection.clone() {
+                        tokio::spawn(async move {
+                            let res = connection.get_query_result(query.clone()).await;
+                            match res {
+                                Ok(query_result) => tx.send(AppEvent::QueryResult(query_result)),
+                                Err(db_error) => {
+                                    tx.send(AppEvent::UserMessage(UserMessage::Error(
+                                        db_error
+                                            .as_db_error()
+                                            .map_or(String::from("Unknown error"), |e| {
+                                                e.to_string()
+                                            }),
+                                    )))
+                                }
+                            }
+                        });
+                    } else {
+                        self.event_tx
+                            .send(AppEvent::UserMessage(UserMessage::Error(String::from(
+                                "No connection established.",
+                            ))))?;
+                    }
                 }
                 _ => {}
             }
             for component in self.components.iter_mut() {
                 if let Some(action) = component.update(action.clone())? {
+                    self.action_tx.send(action)?
+                };
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_app_events(&mut self) -> color_eyre::Result<()> {
+        while let Ok(app_event) = self.event_rx.try_recv() {
+            if let AppEvent::DbConnectionEstablished(connection) = app_event.clone() {
+                self.db_connection = Some(connection);
+            }
+            for component in self.components.iter_mut() {
+                if let Some(action) = component.handle_app_events(app_event.clone())? {
                     self.action_tx.send(action)?
                 };
             }

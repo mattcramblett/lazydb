@@ -1,6 +1,11 @@
-use crate::{action::Action, components::Component, config::Config};
+use crate::{
+    action::Action,
+    app_event::{AppEvent, UserMessage},
+    components::Component,
+    config::Config,
+};
 use ratatui::{
-    layout::{Alignment},
+    layout::Alignment,
     style::{Color, Style},
     widgets::{Block, BorderType, Paragraph},
 };
@@ -42,10 +47,21 @@ impl Component for Messages {
 
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         match action {
-            Action::ExecuteQuery(_) => self.text = None,
-            Action::DisplaySqlError(error_msg) => self.text = Some(error_msg),
+            Action::ExecuteQuery(_) | Action::OpenDbConnection(_) => self.text = None,
             _ => {}
         }
+        Ok(None)
+    }
+
+    fn handle_app_events(
+        &mut self,
+        event: crate::app_event::AppEvent,
+    ) -> color_eyre::Result<Option<Action>> {
+        if let AppEvent::UserMessage(msg) = event {
+            match msg {
+                UserMessage::Error(text) | UserMessage::Info(text) => self.text = Some(text),
+            }
+        };
         Ok(None)
     }
 

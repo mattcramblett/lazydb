@@ -24,6 +24,10 @@ impl ConnectionMenu {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn items(&self) -> Vec<String> {
+        self.config.db_connections.0.clone().into_keys().collect()
+    }
 }
 
 impl Component for ConnectionMenu {
@@ -39,7 +43,22 @@ impl Component for ConnectionMenu {
 
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         match action {
-            Action::NavDown => self.list_state.select_next(),
+            Action::MakeSelection => {
+                if let Some(idx) = self.list_state.selected()
+                    && let Some(connection_name) = self.items().get(idx)
+                {
+                    return Ok(Some(Action::OpenDbConnection(connection_name.to_string())));
+                }
+            }
+            Action::NavDown => {
+                // protect against excess navigation
+                if let Some(selected) = self.list_state.selected()
+                    && selected >= self.items().len() - 1
+                {
+                    return Ok(None);
+                }
+                self.list_state.select_next()
+            }
             Action::NavUp => self.list_state.select_previous(),
             _ => {}
         }
@@ -73,8 +92,7 @@ impl Component for ConnectionMenu {
 No connections are configured.
 1. Create a config.toml file to define connections
 2. Set the path to the file in the env var LAZYDB_CONFIG
-3. Restart LazyDB
-                ",
+3. Restart LazyDB",
             )
             .block(block)
             .centered();
