@@ -8,9 +8,14 @@ use tokio::sync::mpsc;
 use tracing::{debug, info};
 
 use crate::{
-    action::Action, components::{
-        messages::Messages, results_table::ResultsTable, text_editor::TextEditor, Component
-    }, config::Config, database::connection::DbConnection, tui::{Event, Tui}
+    action::Action,
+    components::{
+        Component, connection_menu::ConnectionMenu, messages::Messages,
+        results_table::ResultsTable, text_editor::TextEditor,
+    },
+    config::Config,
+    database::connection::DbConnection,
+    tui::{Event, Tui},
 };
 
 pub struct App {
@@ -29,8 +34,10 @@ pub struct App {
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
-    /// Edit text of SQL query
+    /// Choose a database connection
     #[default]
+    ConnectionMenu,
+    /// Edit text of SQL query
     EditQuery,
     /// Navigate the result table
     ExploreResults,
@@ -43,6 +50,7 @@ impl App {
             tick_rate,
             frame_rate,
             components: vec![
+                Box::new(ConnectionMenu::new()),
                 Box::new(TextEditor::new()),
                 Box::new(ResultsTable::default()),
                 Box::new(Messages::default()),
@@ -50,7 +58,7 @@ impl App {
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
-            mode: Mode::EditQuery,
+            mode: Mode::default(),
             db_connection: None,
             last_tick_key_events: Vec::new(),
             action_tx,
@@ -202,8 +210,9 @@ impl App {
     fn render(&mut self, tui: &mut Tui) -> color_eyre::Result<()> {
         tui.draw(|frame| {
             let layout = Layout::vertical([
-                Constraint::Percentage(45),
-                Constraint::Percentage(45),
+                Constraint::Percentage(10),
+                Constraint::Percentage(40),
+                Constraint::Percentage(40),
                 Constraint::Percentage(10),
             ])
             .split(frame.area());

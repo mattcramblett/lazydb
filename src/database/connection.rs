@@ -4,11 +4,12 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio_postgres::{Client, NoTls, Row, types::Type};
 
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct ConnectionConfig {
     host: Option<String>,
     port: Option<u16>,
     user: Option<String>,
-    password: Option<Vec<u8>>,
+    password: Option<String>,
     database_name: Option<String>,
 }
 
@@ -135,7 +136,7 @@ impl DbConnection {
         }
 
         if let Some(password) = &config.password {
-            result.push(format!("password={}", String::from_utf8(password.clone())?).to_string());
+            result.push(format!("password={}", password).to_string());
         }
 
         if let Some(db_name) = &config.database_name {

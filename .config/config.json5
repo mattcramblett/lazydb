@@ -1,5 +1,14 @@
 {
   "keybindings": {
+    "ConnectionMenu": {
+      "<Ctrl-c>": "Quit",
+      "<Ctrl-z>": "Suspend",
+      "k": "NavUp",
+      "j": "NavDown",
+      "up": "NavUp",
+      "down": "NavDown",
+      "enter": "SelectConnection",
+    },
     "EditQuery": {
       "<Ctrl-c>": "Quit", // Quit the application
       "<Ctrl-z>": "Suspend", // Suspend the application
@@ -7,10 +16,14 @@
     "ExploreResults": {
       "<Ctrl-c>": "Quit",
       "<Ctrl-z>": "Suspend",
-      "j": "NavDown",
       "k": "NavUp",
+      "j": "NavDown",
       "h": "NavLeft",
-      "l": "NavRight"
+      "l": "NavRight",
+      "up": "NavUp",
+      "down": "NavDown",
+      "left": "NavLeft",
+      "right": "NavRight",
     }
   }
 }

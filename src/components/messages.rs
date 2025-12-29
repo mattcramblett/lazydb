@@ -1,6 +1,6 @@
 use crate::{action::Action, components::Component, config::Config};
 use ratatui::{
-    layout::{Alignment, Constraint, Layout},
+    layout::{Alignment},
     style::{Color, Style},
     widgets::{Block, BorderType, Paragraph},
 };

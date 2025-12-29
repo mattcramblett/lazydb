@@ -28,7 +28,7 @@ impl<'a> Default for TextEditor<'a> {
             internal,
             command_tx: Default::default(),
             config: Default::default(),
-            focused: true,
+            focused: false,
         }
     }
 }

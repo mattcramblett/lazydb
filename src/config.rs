@@ -6,7 +6,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use directories::ProjectDirs;
 use lazy_static::lazy_static;
 use ratatui::style::{Color, Modifier, Style};
-use serde::{de::Deserializer, Deserialize};
+use serde::{Deserialize, de::Deserializer};
 use tracing::error;
 
 use crate::{action::Action, app::Mode};
@@ -29,7 +29,12 @@ pub struct Config {
     pub keybindings: KeyBindings,
     #[serde(default)]
     pub styles: Styles,
+    #[serde(default)]
+    pub db_connections: DbConnections,
 }
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct DbConnections(pub HashMap<String, crate::database::connection::ConnectionConfig>);
 
 lazy_static! {
     pub static ref PROJECT_NAME: String = env!("CARGO_CRATE_NAME").to_uppercase().to_string();
@@ -117,7 +122,7 @@ pub fn get_config_dir() -> PathBuf {
 }
 
 fn project_directory() -> Option<ProjectDirs> {
-    ProjectDirs::from("com", "kdheepak", env!("CARGO_PKG_NAME"))
+    ProjectDirs::from("com", "mattcramblett", env!("CARGO_PKG_NAME"))
 }
 
 #[derive(Clone, Debug, Default)]
