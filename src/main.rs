@@ -8,6 +8,7 @@ mod app_event;
 mod app;
 mod cli;
 mod components;
+mod render_plan;
 mod config;
 mod errors;
 mod logging;

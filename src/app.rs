@@ -1,8 +1,7 @@
+use std::collections::HashMap;
+
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    layout::{Constraint, Layout},
-    prelude::Rect,
-};
+use ratatui::{layout::Layout, prelude::Rect};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info};
@@ -16,6 +15,7 @@ use crate::{
     },
     config::Config,
     database::connection::DbConnection,
+    render_plan::AppRenderPlan,
     tui::Tui,
 };
 
@@ -23,7 +23,8 @@ pub struct App {
     config: Config,
     tick_rate: f64,
     frame_rate: f64,
-    components: Vec<Box<dyn Component>>,
+    components: HashMap<ComponentId, Box<dyn Component>>,
+    render_plan: AppRenderPlan,
     should_quit: bool,
     should_suspend: bool,
     mode: Mode,
@@ -35,6 +36,8 @@ pub struct App {
     event_rx: mpsc::UnboundedReceiver<AppEvent>,
 }
 
+/// The mode in which the application is operating. This can influence keymaps, behavior, and
+/// layout.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
     /// Choose a database connection
@@ -46,19 +49,30 @@ pub enum Mode {
     ExploreResults,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ComponentId {
+    ConnectionMenu,
+    TextEditor,
+    ResultsTable,
+    Messages,
+}
+
 impl App {
     pub fn new(tick_rate: f64, frame_rate: f64) -> color_eyre::Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
+        let mut components: HashMap<ComponentId, Box<dyn Component>> = HashMap::new();
+        components.insert(ComponentId::ConnectionMenu, Box::new(ConnectionMenu::new()));
+        components.insert(ComponentId::TextEditor, Box::new(TextEditor::new()));
+        components.insert(ComponentId::ResultsTable, Box::new(ResultsTable::default()));
+        components.insert(ComponentId::Messages, Box::new(Messages::default()));
+        let render_plan = AppRenderPlan::default();
+
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![
-                Box::new(ConnectionMenu::new()),
-                Box::new(TextEditor::new()),
-                Box::new(ResultsTable::default()),
-                Box::new(Messages::default()),
-            ],
+            components,
+            render_plan,
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
@@ -79,13 +93,13 @@ impl App {
             .frame_rate(self.frame_rate);
         tui.enter()?;
 
-        for component in self.components.iter_mut() {
+        for (_, component) in self.components.iter_mut() {
             component.register_action_handler(self.action_tx.clone())?;
         }
-        for component in self.components.iter_mut() {
+        for (_, component) in self.components.iter_mut() {
             component.register_config_handler(self.config.clone())?;
         }
-        for component in self.components.iter_mut() {
+        for (_, component) in self.components.iter_mut() {
             component.init(tui.size()?)?;
         }
 
@@ -122,7 +136,7 @@ impl App {
             crate::tui::Event::Key(key) => self.handle_key_event(key)?,
             _ => {}
         }
-        for component in self.components.iter_mut() {
+        for (_, component) in self.components.iter_mut() {
             if let Some(action) = component.handle_events(Some(event.clone()))? {
                 action_tx.send(action)?;
             }
@@ -236,7 +250,7 @@ impl App {
                 }
                 _ => {}
             }
-            for component in self.components.iter_mut() {
+            for (_, component) in self.components.iter_mut() {
                 if let Some(action) = component.update(action.clone())? {
                     self.action_tx.send(action)?
                 };
@@ -249,17 +263,18 @@ impl App {
         while let Ok(app_event) = self.event_rx.try_recv() {
             match app_event.clone() {
                 AppEvent::DbConnectionEstablished(connection) => {
-                    self.db_connection = Some(connection)
+                    self.db_connection = Some(connection);
+                    self.action_tx.send(Action::ChangeMode(Mode::EditQuery))?;
                 }
                 AppEvent::QueryResult(result) => {
-                    self.event_tx.clone().send(AppEvent::UserMessage(
+                    self.event_tx.send(AppEvent::UserMessage(
                         MessageType::Info,
                         format!("{} results", result.rows.len()),
                     ))?
                 }
                 _ => {}
             }
-            for component in self.components.iter_mut() {
+            for (_, component) in self.components.iter_mut() {
                 if let Some(action) = component.handle_app_events(app_event.clone())? {
                     self.action_tx.send(action)?
                 };
@@ -275,19 +290,22 @@ impl App {
     }
 
     fn render(&mut self, tui: &mut Tui) -> color_eyre::Result<()> {
+        let render_plan = self.render_plan.get_plan(self.mode);
         tui.draw(|frame| {
-            let layout = Layout::vertical([
-                Constraint::Percentage(10),
-                Constraint::Percentage(40),
-                Constraint::Percentage(40),
-                Constraint::Percentage(10),
-            ])
-            .split(frame.area());
-            for (i, component) in self.components.iter_mut().enumerate() {
-                if let Err(err) = component.draw(frame, layout[i]) {
-                    let _ = self
-                        .action_tx
-                        .send(Action::Error(format!("Failed to draw: {:?}", err)));
+            let layout = Layout::vertical(render_plan.constraints).split(frame.area());
+
+            for (i, comp_id) in render_plan.component_ids.iter().enumerate() {
+                if let Some(comp) = self.components.get_mut(comp_id) {
+                    if let Err(err) = comp.draw(frame, layout[i]) {
+                        let _ = self
+                            .action_tx
+                            .send(Action::Error(format!("Failed to draw: {:?}", err)));
+                    }
+                } else {
+                    let _ = self.action_tx.send(Action::Error(format!(
+                        "Could not find component with id: {:?}",
+                        comp_id
+                    )));
                 }
             }
         })?;
