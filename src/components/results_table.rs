@@ -134,7 +134,7 @@ impl ResultsTable {
 
     fn make_block<'a>(&self) -> Block<'a> {
         Block::bordered()
-            .title("results [f2]")
+            .title("results [alt+2]")
             .style(Style::new().fg(if self.focused {
                 Color::Cyan
             } else {
