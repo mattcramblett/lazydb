@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    layout::{Alignment},
+    layout::Alignment,
     style::{Color, Style},
     widgets::{Block, BorderType},
 };
@@ -23,6 +23,7 @@ impl<'a> Default for TextEditor<'a> {
 
         let style = Style::default().bg(Color::DarkGray).fg(Color::LightBlue);
         internal.set_line_number_style(style);
+        internal.set_selection_style(Style::default().bg(Color::DarkGray));
 
         Self {
             internal,
@@ -36,6 +37,29 @@ impl<'a> Default for TextEditor<'a> {
 impl<'a> TextEditor<'a> {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    fn query(&self) -> String {
+        if let Some(selection_range) = self.internal.selection_range() {
+            let ((first_line, first_line_char), (last_line, last_line_char)) = selection_range;
+            let mut lines: Vec<String> = vec![];
+            let iter = self.internal.clone().into_lines().into_iter().enumerate();
+
+            for (idx, line) in iter {
+                if idx == first_line && idx == last_line {
+                    lines.push(line[first_line_char..last_line_char].to_string());
+                } else if idx == first_line {
+                    lines.push(line[first_line_char..line.len()].to_string());
+                } else if idx == last_line {
+                    lines.push(line[0..last_line_char].to_string());
+                } else if (first_line..=last_line).contains(&idx) {
+                    lines.push(line);
+                }
+            }
+            lines.join("\n")
+        } else {
+            self.internal.clone().into_lines().join("\n")
+        }
     }
 }
 
@@ -53,8 +77,7 @@ impl Component for TextEditor<'_> {
         match key.code {
             // ctrl+r runs the query in the editor
             KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
-                let query = self.internal.clone().into_lines().join("\n");
-                Ok(Some(Action::ExecuteQuery(query)))
+                Ok(Some(Action::ExecuteQuery(self.query())))
             }
             // any other key we accept as editor input, only if focused
             _ => {
