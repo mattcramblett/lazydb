@@ -47,6 +47,8 @@ pub enum Mode {
     EditQuery,
     /// Navigate the result table
     ExploreResults,
+    /// Navigate the list of tables
+    ExploreTables,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -176,6 +178,9 @@ impl App {
                         }
                         KeyCode::Char('2') if key.modifiers == KeyModifiers::ALT => {
                             action_tx.send(Action::ChangeMode(Mode::ExploreResults))?;
+                        }
+                        KeyCode::Char('3') if key.modifiers == KeyModifiers::ALT => {
+                            action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
                         }
                         _ => {}
                     }

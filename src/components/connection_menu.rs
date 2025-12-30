@@ -66,7 +66,7 @@ impl Component for ConnectionMenu {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> color_eyre::Result<()> {
-        let items: Vec<String> = self.config.db_connections.0.clone().into_keys().collect();
+        let items: Vec<String> = self.items();
         if !items.is_empty() {
             let block = Block::bordered()
                 .title("choose a connection")
