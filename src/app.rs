@@ -16,7 +16,7 @@ use crate::{
     },
     config::Config,
     database::connection::DbConnection,
-    tui::{Event, Tui},
+    tui::Tui,
 };
 
 pub struct App {
@@ -115,11 +115,11 @@ impl App {
         };
         let action_tx = self.action_tx.clone();
         match event {
-            Event::Quit => action_tx.send(Action::Quit)?,
-            Event::Tick => action_tx.send(Action::Tick)?,
-            Event::Render => action_tx.send(Action::Render)?,
-            Event::Resize(x, y) => action_tx.send(Action::Resize(x, y))?,
-            Event::Key(key) => self.handle_key_event(key)?,
+            crate::tui::Event::Quit => action_tx.send(Action::Quit)?,
+            crate::tui::Event::Tick => action_tx.send(Action::Tick)?,
+            crate::tui::Event::Render => action_tx.send(Action::Render)?,
+            crate::tui::Event::Resize(x, y) => action_tx.send(Action::Resize(x, y))?,
+            crate::tui::Event::Key(key) => self.handle_key_event(key)?,
             _ => {}
         }
         for component in self.components.iter_mut() {
