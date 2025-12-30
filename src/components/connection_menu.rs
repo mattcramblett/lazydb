@@ -90,8 +90,8 @@ impl Component for ConnectionMenu {
             let paragraph = Paragraph::new(
                 "
 No connections are configured.
-1. Create a config.toml file to define connections
-2. Set the path to the file in the env var LAZYDB_CONFIG
+1. Create a config.yaml file to define connections
+2. Set the absolute path to the file in the env var LAZYDB_CONFIG
 3. Restart LazyDB",
             )
             .block(block)
