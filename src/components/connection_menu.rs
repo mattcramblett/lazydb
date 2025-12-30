@@ -66,7 +66,6 @@ impl Component for ConnectionMenu {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> color_eyre::Result<()> {
-        // println!("config? {:?}", self.config);
         let items: Vec<String> = self.config.db_connections.0.clone().into_keys().collect();
         if !items.is_empty() {
             let block = Block::bordered()

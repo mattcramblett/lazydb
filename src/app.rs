@@ -10,7 +10,8 @@ use crate::{
     action::Action,
     app_event::{AppEvent, MessageType},
     components::{
-        connection_menu::ConnectionMenu, messages::Messages, results_table::ResultsTable, text_editor::TextEditor, title::Title, Component
+        Component, connection_menu::ConnectionMenu, messages::Messages,
+        results_table::ResultsTable, table_list::TableList, text_editor::TextEditor, title::Title,
     },
     config::Config,
     database::connection::DbConnection,
@@ -55,6 +56,7 @@ pub enum ComponentId {
     TextEditor,
     ResultsTable,
     Messages,
+    TableList,
 }
 
 impl App {
@@ -67,6 +69,7 @@ impl App {
         components.insert(ComponentId::TextEditor, Box::new(TextEditor::new()));
         components.insert(ComponentId::ResultsTable, Box::new(ResultsTable::default()));
         components.insert(ComponentId::Messages, Box::new(Messages::default()));
+        components.insert(ComponentId::TableList, Box::new(TableList::default()));
         let render_plan = AppRenderPlan::default();
 
         Ok(Self {
@@ -267,12 +270,10 @@ impl App {
                     self.db_connection = Some(connection);
                     self.action_tx.send(Action::ChangeMode(Mode::EditQuery))?;
                 }
-                AppEvent::QueryResult(result) => {
-                    self.event_tx.send(AppEvent::UserMessage(
-                        MessageType::Info,
-                        format!("{} results", result.rows.len()),
-                    ))?
-                }
+                AppEvent::QueryResult(result) => self.event_tx.send(AppEvent::UserMessage(
+                    MessageType::Info,
+                    format!("{} results", result.rows.len()),
+                ))?,
                 _ => {}
             }
             for (_, component) in self.components.iter_mut() {

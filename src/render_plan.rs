@@ -39,11 +39,13 @@ impl Default for AppRenderPlan {
 
         let default = ModeRenderPlan {
             constraints: vec![
-                Constraint::Percentage(45),
-                Constraint::Percentage(45),
+                Constraint::Percentage(10),
+                Constraint::Percentage(40),
+                Constraint::Percentage(40),
                 Constraint::Percentage(10),
             ],
             component_ids: vec![
+                ComponentId::TableList,
                 ComponentId::TextEditor,
                 ComponentId::ResultsTable,
                 ComponentId::Messages,
