@@ -7,10 +7,11 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{action::Action, app_event::AppEvent, config::Config, tui::Event};
 
+pub mod title;
+pub mod connection_menu;
 pub mod text_editor;
 pub mod results_table;
 pub mod messages;
-pub mod connection_menu;
 
 /// `Component` is a trait that represents a visual and interactive element of the user interface.
 ///

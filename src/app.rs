@@ -10,8 +10,7 @@ use crate::{
     action::Action,
     app_event::{AppEvent, MessageType},
     components::{
-        Component, connection_menu::ConnectionMenu, messages::Messages,
-        results_table::ResultsTable, text_editor::TextEditor,
+        connection_menu::ConnectionMenu, messages::Messages, results_table::ResultsTable, text_editor::TextEditor, title::Title, Component
     },
     config::Config,
     database::connection::DbConnection,
@@ -51,6 +50,7 @@ pub enum Mode {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ComponentId {
+    Title,
     ConnectionMenu,
     TextEditor,
     ResultsTable,
@@ -62,6 +62,7 @@ impl App {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let mut components: HashMap<ComponentId, Box<dyn Component>> = HashMap::new();
+        components.insert(ComponentId::Title, Box::new(Title::default()));
         components.insert(ComponentId::ConnectionMenu, Box::new(ConnectionMenu::new()));
         components.insert(ComponentId::TextEditor, Box::new(TextEditor::new()));
         components.insert(ComponentId::ResultsTable, Box::new(ResultsTable::default()));

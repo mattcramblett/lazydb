@@ -22,11 +22,19 @@ impl Default for AppRenderPlan {
     fn default() -> Self {
         let mut plans = HashMap::new();
         plans.insert(
-            Mode::ConnectionMenu, 
+            Mode::ConnectionMenu,
             ModeRenderPlan {
-                constraints: vec![Constraint::Percentage(90), Constraint::Percentage(10)],
-                component_ids: vec![ComponentId::ConnectionMenu, ComponentId::Messages],
-            }
+                constraints: vec![
+                    Constraint::Min(10),
+                    Constraint::Fill(40),
+                    Constraint::Min(5),
+                ],
+                component_ids: vec![
+                    ComponentId::Title,
+                    ComponentId::ConnectionMenu,
+                    ComponentId::Messages,
+                ],
+            },
         );
 
         let default = ModeRenderPlan {
@@ -39,7 +47,7 @@ impl Default for AppRenderPlan {
                 ComponentId::TextEditor,
                 ComponentId::ResultsTable,
                 ComponentId::Messages,
-            ]
+            ],
         };
 
         Self { plans, default }
