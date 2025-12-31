@@ -20,18 +20,20 @@ impl AppRenderPlan {
                 (ComponentId::Messages, layout[2]),
             ];
         }
+        let outer_layout =
+            Layout::horizontal([Constraint::Percentage(20), Constraint::Percentage(80)])
+                .split(root);
         let layout = Layout::vertical([
-            Constraint::Percentage(10),
-            Constraint::Percentage(40),
-            Constraint::Percentage(40),
+            Constraint::Percentage(45),
+            Constraint::Percentage(45),
             Constraint::Percentage(10),
         ])
-        .split(root);
+        .split(outer_layout[1]);
         vec![
-            (ComponentId::TableList, layout[0]),
-            (ComponentId::TextEditor, layout[1]),
-            (ComponentId::ResultsTable, layout[2]),
-            (ComponentId::Messages, layout[3]),
+            (ComponentId::TableList, outer_layout[0]),
+            (ComponentId::TextEditor, layout[0]),
+            (ComponentId::ResultsTable, layout[1]),
+            (ComponentId::Messages, layout[2]),
         ]
     }
 }
