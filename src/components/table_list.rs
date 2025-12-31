@@ -50,6 +50,7 @@ impl Component for TableList {
             Action::NavDown if self.focused => {
                 // protect against excess navigation
                 if let Some(selected) = self.list_state.selected()
+                    && !self.items.is_empty()
                     && selected >= self.items.len() - 1
                 {
                     return Ok(None);
@@ -57,6 +58,18 @@ impl Component for TableList {
                 self.list_state.select_next()
             }
             Action::NavUp if self.focused => self.list_state.select_previous(),
+            Action::MakeSelection if self.focused => {
+                if let Some(index) = self.list_state.selected()
+                    && let Some(selection) = self.items.get(index)
+                {
+                    let table_name = selection.to_string();
+                    return Ok(Some(Action::ExecuteQuery(
+                        SystemQuery::query_for(QueryTag::InitialTable(table_name.clone())),
+                        QueryTag::User, // tag as a User query, since they initiated the action
+                    )));
+                }
+                return Ok(None);
+            }
             Action::ChangeMode(Mode::ExploreTables) => self.focused = true,
             Action::ChangeMode(_) => self.focused = false,
             _ => {}
@@ -71,10 +84,11 @@ impl Component for TableList {
         match event {
             // When a database connection is established, trigger a system query for the tables
             AppEvent::DbConnectionEstablished(_) => Ok(Some(Action::ExecuteQuery(
-                SystemQuery::query_for(QueryTag::TableSchema), Some(QueryTag::TableSchema)
+                SystemQuery::query_for(QueryTag::ListTables),
+                QueryTag::ListTables,
             ))),
             // Listen for when the query is returned
-            AppEvent::QueryResult(result, Some(QueryTag::TableSchema)) => {
+            AppEvent::QueryResult(result, QueryTag::ListTables) => {
                 self.items = result
                     .rows
                     .iter()

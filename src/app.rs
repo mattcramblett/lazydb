@@ -1,15 +1,22 @@
 use std::collections::HashMap;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{prelude::Rect};
+use ratatui::prelude::Rect;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 use crate::{
-    action::Action, app_event::{AppEvent, MessageType}, components::{
-        connection_menu::ConnectionMenu, messages::Messages, results_table::ResultsTable, table_list::TableList, text_editor::TextEditor, title::Title, Component
-    }, config::Config, database::{connection::DbConnection}, render_plan::AppRenderPlan, tui::Tui
+    action::Action,
+    app_event::{AppEvent, MessageType, QueryTag},
+    components::{
+        Component, connection_menu::ConnectionMenu, messages::Messages,
+        results_table::ResultsTable, table_list::TableList, text_editor::TextEditor, title::Title,
+    },
+    config::Config,
+    database::connection::DbConnection,
+    render_plan::AppRenderPlan,
+    tui::Tui,
 };
 
 pub struct App {
@@ -234,7 +241,9 @@ impl App {
                         tokio::spawn(async move {
                             let res = connection.get_query_result(query.clone()).await;
                             match res {
-                                Ok(query_result) => tx.send(AppEvent::QueryResult(query_result, tag)),
+                                Ok(query_result) => {
+                                    tx.send(AppEvent::QueryResult(query_result, tag))
+                                }
                                 Err(db_error) => tx.send(AppEvent::UserMessage(
                                     MessageType::Error,
                                     db_error
@@ -266,12 +275,15 @@ impl App {
             match app_event.clone() {
                 AppEvent::DbConnectionEstablished(connection) => {
                     self.db_connection = Some(connection);
-                    self.action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
+                    self.action_tx
+                        .send(Action::ChangeMode(Mode::ExploreTables))?;
                 }
-                AppEvent::QueryResult(result, None) => self.event_tx.send(AppEvent::UserMessage(
-                    MessageType::Info,
-                    format!("{} results", result.rows.len()),
-                ))?,
+                AppEvent::QueryResult(result, QueryTag::User) => {
+                    self.event_tx.send(AppEvent::UserMessage(
+                        MessageType::Info,
+                        format!("{} results", result.rows.len()),
+                    ))?
+                }
                 _ => {}
             }
             for (_, component) in self.components.iter_mut() {

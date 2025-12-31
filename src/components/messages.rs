@@ -1,6 +1,6 @@
 use crate::{
     action::Action,
-    app_event::{AppEvent, MessageType},
+    app_event::{AppEvent, MessageType, QueryTag},
     components::Component,
     config::Config,
 };
@@ -52,7 +52,9 @@ impl Component for Messages {
 
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         match action {
-            Action::ExecuteQuery(_, None) | Action::OpenDbConnection(_) => self.message = None,
+            Action::ExecuteQuery(_, QueryTag::User) | Action::OpenDbConnection(_) => {
+                self.message = None
+            }
             _ => {}
         }
         Ok(None)

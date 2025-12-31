@@ -6,7 +6,7 @@ use ratatui::{
 };
 
 use crate::{
-    action::Action, app::Mode, app_event::AppEvent, components::Component, config::Config,
+    action::Action, app::Mode, app_event::{AppEvent, QueryTag}, components::Component, config::Config,
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -63,7 +63,7 @@ impl Component for ResultsTable {
         &mut self,
         event: crate::app_event::AppEvent,
     ) -> color_eyre::Result<Option<Action>> {
-        if let AppEvent::QueryResult(result, None) = event {
+        if let AppEvent::QueryResult(result, QueryTag::User) = event {
             self.set_data(result.columns, result.rows);
         }
         Ok(None)

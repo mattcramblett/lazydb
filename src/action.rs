@@ -18,7 +18,7 @@ pub enum Action {
     ChangeMode(Mode),
     MakeSelection,
     OpenDbConnection(String),
-    ExecuteQuery(String, Option<QueryTag>),
+    ExecuteQuery(String, QueryTag),
     NavDown,
     NavUp,
     NavLeft,

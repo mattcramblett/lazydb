@@ -2,12 +2,13 @@ use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::Component;
-use crate::{action::Action, config::Config};
+use crate::{action::Action, app::Mode, config::Config};
 
 pub struct ConnectionMenu {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     list_state: ListState,
+    focused: bool,
 }
 
 impl Default for ConnectionMenu {
@@ -16,6 +17,7 @@ impl Default for ConnectionMenu {
             command_tx: Default::default(),
             config: Default::default(),
             list_state: ListState::default().with_selected(Some(0)),
+            focused: true, // NOTE: this is the first pane used in app startup, so focus it
         }
     }
 }
@@ -44,22 +46,25 @@ impl Component for ConnectionMenu {
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         match action {
             Action::MakeSelection => {
-                if let Some(idx) = self.list_state.selected()
+                if let Some(idx) = self.list_state.selected() && self.focused
                     && let Some(connection_name) = self.items().get(idx)
                 {
                     return Ok(Some(Action::OpenDbConnection(connection_name.to_string())));
                 }
             }
-            Action::NavDown => {
+            Action::NavDown if self.focused => {
                 // protect against excess navigation
                 if let Some(selected) = self.list_state.selected()
+                    && !self.items().is_empty()
                     && selected >= self.items().len() - 1
                 {
                     return Ok(None);
                 }
                 self.list_state.select_next()
             }
-            Action::NavUp => self.list_state.select_previous(),
+            Action::NavUp if self.focused => self.list_state.select_previous(),
+            Action::ChangeMode(Mode::ConnectionMenu) => self.focused = true,
+            Action::ChangeMode(_) => self.focused = false,
             _ => {}
         }
         Ok(None)

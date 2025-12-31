@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -9,7 +8,7 @@ use crate::database::connection::{DbConnection, QueryResult};
 #[derive(Clone)]
 pub enum AppEvent {
     DbConnectionEstablished(DbConnection),
-    QueryResult(QueryResult, Option<QueryTag>),
+    QueryResult(QueryResult, QueryTag),
     UserMessage(MessageType, String),
 }
 
@@ -19,9 +18,12 @@ pub enum MessageType {
     Info,
 }
 
+/// Queries performed can be tagged for specific listeners. Some queries are triggered by the system
+/// for app functionality will be tagged for specific use cases.
 #[derive(Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize)]
 pub enum QueryTag {
-    /// Queries performed by the system for app functionality
-    TableSchema
+    /// User queries are triggered by the user and should be shown in the results table.
+    User,
+    ListTables,
+    InitialTable(String),
 }
-

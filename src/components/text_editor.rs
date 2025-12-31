@@ -7,7 +7,7 @@ use ratatui::{
 use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::TextArea;
 
-use crate::{action::Action, app::Mode, components::Component, config::Config};
+use crate::{action::Action, app::Mode, app_event::QueryTag, components::Component, config::Config};
 
 /// Text editor for SQL statements.
 pub struct TextEditor<'a> {
@@ -77,7 +77,7 @@ impl Component for TextEditor<'_> {
         match key.code {
             // ctrl+r runs the query in the editor
             KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
-                Ok(Some(Action::ExecuteQuery(self.query(), None)))
+                Ok(Some(Action::ExecuteQuery(self.query(), QueryTag::User)))
             }
             // any other key we accept as editor input, only if focused
             _ => {
