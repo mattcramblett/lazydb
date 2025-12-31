@@ -174,13 +174,13 @@ impl App {
                     // TODO: make these global keybinds configurable
                     match key.code {
                         KeyCode::Char('1') if key.modifiers == KeyModifiers::ALT => {
-                            action_tx.send(Action::ChangeMode(Mode::EditQuery))?;
+                            action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
                         }
                         KeyCode::Char('2') if key.modifiers == KeyModifiers::ALT => {
-                            action_tx.send(Action::ChangeMode(Mode::ExploreResults))?;
+                            action_tx.send(Action::ChangeMode(Mode::EditQuery))?;
                         }
                         KeyCode::Char('3') if key.modifiers == KeyModifiers::ALT => {
-                            action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
+                            action_tx.send(Action::ChangeMode(Mode::ExploreResults))?;
                         }
                         _ => {}
                     }
@@ -273,7 +273,7 @@ impl App {
             match app_event.clone() {
                 AppEvent::DbConnectionEstablished(connection) => {
                     self.db_connection = Some(connection);
-                    self.action_tx.send(Action::ChangeMode(Mode::EditQuery))?;
+                    self.action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
                 }
                 AppEvent::QueryResult(result) => self.event_tx.send(AppEvent::UserMessage(
                     MessageType::Info,

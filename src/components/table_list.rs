@@ -20,7 +20,7 @@ impl Default for TableList {
             command_tx: Default::default(),
             config: Default::default(),
             list_state: ListState::default().with_selected(Some(0)),
-            focused: false,
+            focused: true,
         }
     }
 }
@@ -38,7 +38,7 @@ impl Component for TableList {
 
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         match action {
-            Action::NavDown => {
+            Action::NavDown if self.focused  => {
                 // protect against excess navigation
                 if let Some(selected) = self.list_state.selected()
                     && selected >= self.items().len() - 1
@@ -47,7 +47,7 @@ impl Component for TableList {
                 }
                 self.list_state.select_next()
             }
-            Action::NavUp => self.list_state.select_previous(),
+            Action::NavUp if self.focused  => self.list_state.select_previous(),
             Action::ChangeMode(Mode::ExploreTables) => self.focused = true,
             Action::ChangeMode(_) => self.focused = false,
             _ => {}
@@ -62,7 +62,7 @@ impl Component for TableList {
     ) -> color_eyre::Result<()> {
         let items: Vec<String> = self.items();
         let block = Block::bordered()
-            .title("tables [alt+3]")
+            .title("tables [alt+1]")
             .style(Style::new().fg(if self.focused {
                 Color::Cyan
             } else {

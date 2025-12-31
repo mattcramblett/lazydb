@@ -105,7 +105,7 @@ impl Component for TextEditor<'_> {
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
         let block = Block::bordered()
-            .title("lazydb [alt+1]")
+            .title("lazydb [alt+2]")
             .style(Style::new().fg(if self.focused {
                 Color::Cyan
             } else {

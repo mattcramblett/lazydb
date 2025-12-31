@@ -48,10 +48,10 @@ impl Default for ResultsTable {
 impl Component for ResultsTable {
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         match action {
-            Action::NavDown => self.state.select_next(),
-            Action::NavUp => self.state.select_previous(),
-            Action::NavLeft => self.state.select_previous_column(),
-            Action::NavRight => self.state.select_next_column(),
+            Action::NavDown if self.focused => self.state.select_next(),
+            Action::NavUp if self.focused => self.state.select_previous(),
+            Action::NavLeft if self.focused => self.state.select_previous_column(),
+            Action::NavRight if self.focused => self.state.select_next_column(),
             Action::ChangeMode(Mode::ExploreResults) => self.update_focused(true),
             Action::ChangeMode(_) => self.update_focused(false),
             _ => {}
@@ -134,7 +134,7 @@ impl ResultsTable {
 
     fn make_block<'a>(&self) -> Block<'a> {
         Block::bordered()
-            .title("results [alt+2]")
+            .title("results [alt+3]")
             .style(Style::new().fg(if self.focused {
                 Color::Cyan
             } else {
