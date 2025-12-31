@@ -77,7 +77,7 @@ impl Component for TextEditor<'_> {
         match key.code {
             // ctrl+r runs the query in the editor
             KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
-                Ok(Some(Action::ExecuteQuery(self.query())))
+                Ok(Some(Action::ExecuteQuery(self.query(), None)))
             }
             // any other key we accept as editor input, only if focused
             _ => {

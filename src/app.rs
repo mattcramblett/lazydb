@@ -7,16 +7,9 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 use crate::{
-    action::Action,
-    app_event::{AppEvent, MessageType},
-    components::{
-        Component, connection_menu::ConnectionMenu, messages::Messages,
-        results_table::ResultsTable, table_list::TableList, text_editor::TextEditor, title::Title,
-    },
-    config::Config,
-    database::connection::DbConnection,
-    render_plan::AppRenderPlan,
-    tui::Tui,
+    action::Action, app_event::{AppEvent, MessageType}, components::{
+        connection_menu::ConnectionMenu, messages::Messages, results_table::ResultsTable, table_list::TableList, text_editor::TextEditor, title::Title, Component
+    }, config::Config, database::{connection::DbConnection}, render_plan::AppRenderPlan, tui::Tui
 };
 
 pub struct App {
@@ -234,14 +227,14 @@ impl App {
                         error!("Attempted to open an unknown connection");
                     }
                 }
-                Action::ExecuteQuery(query) => {
+                Action::ExecuteQuery(query, tag) => {
                     // When a query is executed, report the result back via an app event.
                     let tx = self.event_tx.clone();
                     if let Some(connection) = self.db_connection.clone() {
                         tokio::spawn(async move {
                             let res = connection.get_query_result(query.clone()).await;
                             match res {
-                                Ok(query_result) => tx.send(AppEvent::QueryResult(query_result)),
+                                Ok(query_result) => tx.send(AppEvent::QueryResult(query_result, tag)),
                                 Err(db_error) => tx.send(AppEvent::UserMessage(
                                     MessageType::Error,
                                     db_error
@@ -275,7 +268,7 @@ impl App {
                     self.db_connection = Some(connection);
                     self.action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
                 }
-                AppEvent::QueryResult(result) => self.event_tx.send(AppEvent::UserMessage(
+                AppEvent::QueryResult(result, None) => self.event_tx.send(AppEvent::UserMessage(
                     MessageType::Info,
                     format!("{} results", result.rows.len()),
                 ))?,
