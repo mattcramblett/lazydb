@@ -1,68 +1,37 @@
-use std::collections::HashMap;
-
-use ratatui::layout::Constraint;
+use ratatui::layout::{Constraint, Layout, Rect};
 
 use crate::app::{ComponentId, Mode};
 
-#[derive(Default, Clone)]
-pub struct ModeRenderPlan {
-    pub constraints: Vec<Constraint>,
-    pub component_ids: Vec<ComponentId>,
-}
-
-#[derive(Clone)]
-pub struct AppRenderPlan {
-    /// Mapping of the app Mode to its render plan
-    plans: HashMap<Mode, ModeRenderPlan>,
-    /// The fallback option if there is not a specified plan for the given mode
-    default: ModeRenderPlan,
-}
-
-impl Default for AppRenderPlan {
-    fn default() -> Self {
-        let mut plans = HashMap::new();
-        plans.insert(
-            Mode::ConnectionMenu,
-            ModeRenderPlan {
-                constraints: vec![
-                    Constraint::Min(10),
-                    Constraint::Fill(40),
-                    Constraint::Min(5),
-                ],
-                component_ids: vec![
-                    ComponentId::Title,
-                    ComponentId::ConnectionMenu,
-                    ComponentId::Messages,
-                ],
-            },
-        );
-
-        let default = ModeRenderPlan {
-            constraints: vec![
-                Constraint::Percentage(10),
-                Constraint::Percentage(40),
-                Constraint::Percentage(40),
-                Constraint::Percentage(10),
-            ],
-            component_ids: vec![
-                ComponentId::TableList,
-                ComponentId::TextEditor,
-                ComponentId::ResultsTable,
-                ComponentId::Messages,
-            ],
-        };
-
-        Self { plans, default }
-    }
-}
+#[derive(Clone, Default)]
+pub struct AppRenderPlan {}
 
 impl AppRenderPlan {
-    /// Given a Mode of the app, returns the definition of what should be rendered.
-    pub fn get_plan(&self, mode: Mode) -> ModeRenderPlan {
-        if let Some(plan) = self.plans.get(&mode) {
-            plan.clone()
-        } else {
-            self.default.clone()
+    pub fn compute_layouts(&self, mode: Mode, root: Rect) -> Vec<(ComponentId, Rect)> {
+        if mode == Mode::ConnectionMenu {
+            let layout = Layout::vertical([
+                Constraint::Min(10),
+                Constraint::Fill(40),
+                Constraint::Min(5),
+            ])
+            .split(root);
+            return vec![
+                (ComponentId::Title, layout[0]),
+                (ComponentId::ConnectionMenu, layout[1]),
+                (ComponentId::Messages, layout[2]),
+            ];
         }
+        let layout = Layout::vertical([
+            Constraint::Percentage(10),
+            Constraint::Percentage(40),
+            Constraint::Percentage(40),
+            Constraint::Percentage(10),
+        ])
+        .split(root);
+        vec![
+            (ComponentId::TableList, layout[0]),
+            (ComponentId::TextEditor, layout[1]),
+            (ComponentId::ResultsTable, layout[2]),
+            (ComponentId::Messages, layout[3]),
+        ]
     }
 }

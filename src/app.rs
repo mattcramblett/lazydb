@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{layout::Layout, prelude::Rect};
+use ratatui::{prelude::Rect};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info};
@@ -297,13 +297,12 @@ impl App {
     }
 
     fn render(&mut self, tui: &mut Tui) -> color_eyre::Result<()> {
-        let render_plan = self.render_plan.get_plan(self.mode);
         tui.draw(|frame| {
-            let layout = Layout::vertical(render_plan.constraints).split(frame.area());
+            let layouts = self.render_plan.compute_layouts(self.mode, frame.area());
 
-            for (i, comp_id) in render_plan.component_ids.iter().enumerate() {
+            for (comp_id, area) in layouts.iter() {
                 if let Some(comp) = self.components.get_mut(comp_id) {
-                    if let Err(err) = comp.draw(frame, layout[i]) {
+                    if let Err(err) = comp.draw(frame, *area) {
                         let _ = self
                             .action_tx
                             .send(Action::Error(format!("Failed to draw: {:?}", err)));
