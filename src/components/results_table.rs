@@ -1,3 +1,4 @@
+use arboard::Clipboard;
 use ratatui::{
     layout::{Alignment, Constraint},
     prelude::Rect,
@@ -6,7 +7,11 @@ use ratatui::{
 };
 
 use crate::{
-    action::Action, app::Mode, app_event::{AppEvent, QueryTag}, components::Component, config::Config,
+    action::Action,
+    app::Mode,
+    app_event::{AppEvent, QueryTag},
+    components::Component,
+    config::Config,
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -54,6 +59,21 @@ impl Component for ResultsTable {
             Action::NavRight if self.focused => self.state.select_next_column(),
             Action::ChangeMode(Mode::ExploreResults) => self.update_focused(true),
             Action::ChangeMode(_) => self.update_focused(false),
+            Action::Yank => {
+                if let Ok(clipboard) = Clipboard::new() {
+                    let mut clip = clipboard;
+                    if let Some((idx, col)) = self.state.selected_cell()
+                        && let Some(row) = self.rows.get(idx)
+                        && let Some(val) = row.get(col)
+                    {
+                        clip.set_text(val)? // copy cell value
+                    } else if let Some(idx) = self.state.selected()
+                        && let Some(row) = self.rows.get(idx)
+                    {
+                        clip.set_text(row.join(" "))?
+                    }
+                }
+            }
             _ => {}
         }
         Ok(None)

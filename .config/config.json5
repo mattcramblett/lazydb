@@ -24,6 +24,7 @@
       "down": "NavDown",
       "left": "NavLeft",
       "right": "NavRight",
+      "y": "Yank",
     },
     "ExploreTables": {
       "<Ctrl-c>": "Quit",
