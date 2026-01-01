@@ -23,4 +23,5 @@ pub enum Action {
     NavUp,
     NavLeft,
     NavRight,
+    Yank,
 }

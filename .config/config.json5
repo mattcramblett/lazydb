@@ -33,6 +33,7 @@
       "up": "NavUp",
       "down": "NavDown",
       "enter": "MakeSelection",
+      "y": "Yank",
     }
   }
 }

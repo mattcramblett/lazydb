@@ -1,3 +1,4 @@
+use arboard::Clipboard;
 use ratatui::{
     layout::Alignment,
     style::{Color, Modifier, Style},
@@ -59,9 +60,7 @@ impl Component for TableList {
             }
             Action::NavUp if self.focused => self.list_state.select_previous(),
             Action::MakeSelection if self.focused => {
-                if let Some(index) = self.list_state.selected()
-                    && let Some(selection) = self.items.get(index)
-                {
+                if let Some(selection) = self.selection() {
                     let table_name = selection.to_string();
                     return Ok(Some(Action::ExecuteQuery(
                         SystemQuery::query_for(QueryTag::InitialTable(table_name.clone())),
@@ -72,6 +71,14 @@ impl Component for TableList {
             }
             Action::ChangeMode(Mode::ExploreTables) => self.focused = true,
             Action::ChangeMode(_) => self.focused = false,
+            Action::Yank if self.focused => {
+                if let Ok(clipboard) = Clipboard::new()
+                    && let Some(selection) = self.selection()
+                {
+                    let mut clip = clipboard;
+                    clip.set_text(selection)?
+                }
+            }
             _ => {}
         }
         Ok(None)
@@ -133,5 +140,16 @@ impl Component for TableList {
 
         frame.render_stateful_widget(list, area, &mut self.list_state.clone());
         Ok(())
+    }
+}
+
+impl TableList {
+    fn selection(&self) -> Option<String> {
+        if let Some(index) = self.list_state.selected()
+            && let Some(selection) = self.items.get(index)
+        {
+            return Some(String::from(selection));
+        }
+        None
     }
 }
