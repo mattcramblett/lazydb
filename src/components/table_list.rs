@@ -1,10 +1,12 @@
 use arboard::Clipboard;
+use crossterm::event::KeyCode;
 use ratatui::{
-    layout::Alignment,
+    layout::{Alignment, Constraint, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, List, ListState, Paragraph},
+    widgets::{Block, BorderType, List, ListState},
 };
 use tokio::sync::mpsc::UnboundedSender;
+use tui_textarea::TextArea;
 
 use crate::{
     action::Action,
@@ -15,27 +17,36 @@ use crate::{
     database::system_query::SystemQuery,
 };
 
-pub struct TableList {
+pub struct TableList<'a> {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     list_state: ListState,
-    focused: bool,
+    focused: Option<FocusTarget>,
     items: Vec<String>,
+    search_input: TextArea<'a>,
 }
 
-impl Default for TableList {
+enum FocusTarget {
+    List,
+    Search,
+}
+
+impl<'a> Default for TableList<'a> {
     fn default() -> Self {
+        let mut search_input = TextArea::default();
+        search_input.set_placeholder_text("Search tables");
         Self {
             command_tx: Default::default(),
             config: Default::default(),
             list_state: ListState::default().with_selected(Some(0)),
-            focused: false,
+            focused: None,
             items: Default::default(),
+            search_input,
         }
     }
 }
 
-impl Component for TableList {
+impl<'a> Component for TableList<'a> {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> color_eyre::Result<()> {
         self.command_tx = Some(tx);
         Ok(())
@@ -49,45 +60,86 @@ impl Component for TableList {
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         // Does not require focus:
         match action {
-            Action::ChangeMode(Mode::ExploreTables) => self.focused = true,
-            Action::ChangeMode(_) => self.focused = false,
+            Action::ChangeMode(Mode::ExploreTables) => self.focused = Some(FocusTarget::List),
+            Action::ChangeMode(_) => self.focused = None,
             _ => {}
         }
 
-        if !self.focused { return Ok(None); }
+        // Actions for search input focused:
+        if let Some(FocusTarget::Search) = self.focused
+            && action == Action::MakeSelection
+        {
+            // Key inputs for typing search criteria are in `handle_key_event`
+            self.focused = Some(FocusTarget::List);
+            return Ok(None);
+        }
 
-        // Actions that require focus:
-        match action {
-            Action::NavDown => {
-                // protect against excess navigation
-                if let Some(selected) = self.list_state.selected()
-                    && !self.items.is_empty()
-                    && selected >= self.items.len() - 1
-                {
+        // Actions for list focused:
+        if let Some(FocusTarget::List) = self.focused {
+            match action {
+                Action::NavDown => {
+                    // protect against excess navigation
+                    if let Some(selected) = self.list_state.selected()
+                        && !self.display_items().is_empty()
+                        && selected >= self.display_items().len() - 1
+                    {
+                        return Ok(None);
+                    }
+                    self.list_state.select_next();
+                }
+                Action::NavUp => self.list_state.select_previous(),
+                Action::MakeSelection => {
+                    if let Some(selection) = self.selection() {
+                        let table_name = selection.to_string();
+                        return Ok(Some(Action::ExecuteQuery(
+                            SystemQuery::query_for(QueryTag::InitialTable(table_name.clone())),
+                            QueryTag::User, // tag as a User query, since they initiated the action
+                        )));
+                    }
                     return Ok(None);
                 }
-                self.list_state.select_next()
-            }
-            Action::NavUp => self.list_state.select_previous(),
-            Action::MakeSelection => {
-                if let Some(selection) = self.selection() {
-                    let table_name = selection.to_string();
-                    return Ok(Some(Action::ExecuteQuery(
-                        SystemQuery::query_for(QueryTag::InitialTable(table_name.clone())),
-                        QueryTag::User, // tag as a User query, since they initiated the action
-                    )));
+                Action::Yank => {
+                    if let Ok(clipboard) = Clipboard::new()
+                        && let Some(selection) = self.selection()
+                    {
+                        let mut clip = clipboard;
+                        clip.set_text(selection)?
+                    }
                 }
-                return Ok(None);
+                Action::Search => {
+                    let mut text_area = TextArea::default();
+                    text_area.set_placeholder_text("Search tables");
+                    self.focused = Some(FocusTarget::Search);
+                }
+                _ => {}
             }
-            Action::Yank => {
-                if let Ok(clipboard) = Clipboard::new()
-                    && let Some(selection) = self.selection()
-                {
-                    let mut clip = clipboard;
-                    clip.set_text(selection)?
+        }
+
+        // Applicable for any focus target
+        if let Action::Clear = action
+            && self.focused.is_some()
+        {
+            let mut text_area = TextArea::default();
+            text_area.set_placeholder_text("Search tables");
+            self.search_input = text_area;
+            self.focused = Some(FocusTarget::List);
+        }
+
+        Ok(None)
+    }
+
+    fn handle_key_event(
+        &mut self,
+        key: crossterm::event::KeyEvent,
+    ) -> color_eyre::Result<Option<Action>> {
+        if let Some(FocusTarget::Search) = self.focused {
+            match key.code {
+                KeyCode::Enter => {} // No new line, instead handle it as an app event
+                _ => {
+                    self.search_input.input(key);
+                    self.list_state.select_first();
                 }
             }
-            _ => {}
         }
         Ok(None)
     }
@@ -120,41 +172,63 @@ impl Component for TableList {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
+        let has_focus = self.focused.is_some();
+
         let block = Block::bordered()
             .title("tables [alt+1]")
-            .style(Style::new().fg(if self.focused {
-                Color::Cyan
-            } else {
-                Color::Blue
-            }))
+            .style(Style::new().fg(if has_focus { Color::Cyan } else { Color::Blue }))
             .title_alignment(Alignment::Center)
-            .border_type(if self.focused {
+            .border_type(if has_focus {
                 BorderType::Thick
             } else {
                 BorderType::Plain
             });
 
-        if self.items.is_empty() {
-            let paragraph = Paragraph::new("No tables found.").block(block);
-            frame.render_widget(paragraph, area);
-            return Ok(());
-        }
-
-        let list = List::new(self.items.clone())
+        let list = List::new(self.display_items().clone())
             .style(Color::Cyan)
             .highlight_style(Modifier::REVERSED)
             .highlight_symbol("▹ ")
             .block(block);
 
-        frame.render_stateful_widget(list, area, &mut self.list_state.clone());
+        let show_search = matches!(self.focused, Some(FocusTarget::Search)) || self.has_search();
+
+        if show_search {
+            let layout = Layout::vertical([Constraint::Min(1), Constraint::Fill(100)]).split(area);
+
+            frame.render_widget(&self.search_input, layout[0]);
+            frame.render_stateful_widget(list, layout[1], &mut self.list_state.clone());
+        } else {
+            frame.render_stateful_widget(list, area, &mut self.list_state.clone());
+        }
+
         Ok(())
     }
 }
 
-impl TableList {
+impl<'a> TableList<'a> {
+    fn display_items(&self) -> Vec<String> {
+        if self.has_search() {
+            return self
+                .items
+                .iter()
+                .filter(|it| it.contains(&self.search_content()))
+                .cloned()
+                .collect::<Vec<String>>();
+        }
+        self.items.clone()
+    }
+
+    fn search_content(&self) -> String {
+        self.search_input.lines().join("")
+    }
+
+    fn has_search(&self) -> bool {
+        !self.search_content().is_empty()
+    }
+
     fn selection(&self) -> Option<String> {
         if let Some(index) = self.list_state.selected()
-            && let Some(selection) = self.items.get(index)
+            && let Some(selection) = self.display_items().get(index)
         {
             return Some(String::from(selection));
         }

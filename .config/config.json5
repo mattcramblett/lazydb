@@ -35,6 +35,8 @@
       "down": "NavDown",
       "enter": "MakeSelection",
       "y": "Yank",
+      "/": "Search",
+      "esc": "Clear",
     }
   }
 }
