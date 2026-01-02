@@ -29,7 +29,7 @@ impl Default for TableList {
             command_tx: Default::default(),
             config: Default::default(),
             list_state: ListState::default().with_selected(Some(0)),
-            focused: true,
+            focused: false,
             items: Default::default(),
         }
     }
@@ -47,8 +47,18 @@ impl Component for TableList {
     }
 
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
+        // Does not require focus:
         match action {
-            Action::NavDown if self.focused => {
+            Action::ChangeMode(Mode::ExploreTables) => self.focused = true,
+            Action::ChangeMode(_) => self.focused = false,
+            _ => {}
+        }
+
+        if !self.focused { return Ok(None); }
+
+        // Actions that require focus:
+        match action {
+            Action::NavDown => {
                 // protect against excess navigation
                 if let Some(selected) = self.list_state.selected()
                     && !self.items.is_empty()
@@ -58,8 +68,8 @@ impl Component for TableList {
                 }
                 self.list_state.select_next()
             }
-            Action::NavUp if self.focused => self.list_state.select_previous(),
-            Action::MakeSelection if self.focused => {
+            Action::NavUp => self.list_state.select_previous(),
+            Action::MakeSelection => {
                 if let Some(selection) = self.selection() {
                     let table_name = selection.to_string();
                     return Ok(Some(Action::ExecuteQuery(
@@ -69,9 +79,7 @@ impl Component for TableList {
                 }
                 return Ok(None);
             }
-            Action::ChangeMode(Mode::ExploreTables) => self.focused = true,
-            Action::ChangeMode(_) => self.focused = false,
-            Action::Yank if self.focused => {
+            Action::Yank => {
                 if let Ok(clipboard) = Clipboard::new()
                     && let Some(selection) = self.selection()
                 {
