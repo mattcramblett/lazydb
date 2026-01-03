@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
-use crate::{app::Mode, app_event::QueryTag};
+use crate::{app::Mode, database::system_query};
 
 /// Actions are user-driven events, which differ from AppEvents
 #[derive(Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize)]
@@ -18,7 +18,8 @@ pub enum Action {
     ChangeMode(Mode),
     MakeSelection,
     OpenDbConnection(String),
-    ExecuteQuery(String, QueryTag),
+    ViewStructure,
+    ExecuteQuery(system_query::Query),
     NavDown,
     NavUp,
     NavLeft,

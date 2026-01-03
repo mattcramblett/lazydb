@@ -11,11 +11,12 @@ use crate::{
     app_event::{AppEvent, MessageType, QueryTag},
     components::{
         Component, connection_menu::ConnectionMenu, messages::Messages,
-        results_table::ResultsTable, table_list::TableList, text_editor::TextEditor, title::Title,
+        results_table::ResultsTable, structure_table::StructureTable, table_list::TableList,
+        text_editor::TextEditor, title::Title,
     },
     config::Config,
     database::connection::DbConnection,
-    render_plan::AppRenderPlan,
+    render_plan::RenderPlan,
     tui::Tui,
 };
 
@@ -24,7 +25,7 @@ pub struct App {
     tick_rate: f64,
     frame_rate: f64,
     components: HashMap<ComponentId, Box<dyn Component>>,
-    render_plan: AppRenderPlan,
+    render_plan: RenderPlan,
     should_quit: bool,
     should_suspend: bool,
     mode: Mode,
@@ -49,6 +50,8 @@ pub enum Mode {
     ExploreResults,
     /// Navigate the list of tables
     ExploreTables,
+    /// Navigate to the table's structure
+    ExploreStructure,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -59,6 +62,7 @@ pub enum ComponentId {
     ResultsTable,
     Messages,
     TableList,
+    StructureTable,
 }
 
 impl App {
@@ -72,7 +76,11 @@ impl App {
         components.insert(ComponentId::ResultsTable, Box::new(ResultsTable::default()));
         components.insert(ComponentId::Messages, Box::new(Messages::default()));
         components.insert(ComponentId::TableList, Box::new(TableList::default()));
-        let render_plan = AppRenderPlan::default();
+        components.insert(
+            ComponentId::StructureTable,
+            Box::new(StructureTable::default()),
+        );
+        let render_plan = RenderPlan::default();
 
         Ok(Self {
             tick_rate,
@@ -182,6 +190,9 @@ impl App {
                         KeyCode::Char('3') if key.modifiers == KeyModifiers::ALT => {
                             action_tx.send(Action::ChangeMode(Mode::ExploreResults))?;
                         }
+                        KeyCode::Char('4') if key.modifiers == KeyModifiers::ALT => {
+                            action_tx.send(Action::ChangeMode(Mode::ExploreStructure))?;
+                        }
                         _ => {}
                     }
                 }
@@ -234,19 +245,21 @@ impl App {
                         error!("Attempted to open an unknown connection");
                     }
                 }
-                Action::ExecuteQuery(query, tag) => {
+                Action::ExecuteQuery(query) => {
                     // When a query is executed, report the result back via an app event.
                     let tx = self.event_tx.clone();
                     if let Some(connection) = self.db_connection.clone() {
                         tokio::spawn(async move {
-                            let res = connection.get_query_result(query.clone(), None).await;
+                            let res = connection
+                                .get_query_result(query.query.clone(), query.binds)
+                                .await;
                             match res {
                                 Ok(query_result) => {
-                                    tx.send(AppEvent::QueryResult(query_result, tag))
+                                    tx.send(AppEvent::QueryResult(query_result, query.tag))
                                 }
                                 Err(db_error) => tx.send(AppEvent::UserMessage(
                                     MessageType::Error,
-                                    db_error.to_string()
+                                    db_error.to_string(),
                                 )),
                             }
                         });

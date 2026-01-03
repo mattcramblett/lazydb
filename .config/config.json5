@@ -37,6 +37,20 @@
       "y": "Yank",
       "/": "Search",
       "esc": "Clear",
-    }
+      "s": "ViewStructure",
+    },
+    "ExploreStructure": {
+      "<Ctrl-c>": "Quit",
+      "<Ctrl-z>": "Suspend",
+      "k": "NavUp",
+      "j": "NavDown",
+      "h": "NavLeft",
+      "l": "NavRight",
+      "up": "NavUp",
+      "down": "NavDown",
+      "left": "NavLeft",
+      "right": "NavRight",
+      "y": "Yank",
+    },
   }
 }

@@ -1,15 +1,24 @@
 use color_eyre::eyre::bail;
 use color_eyre::Result;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 use crate::app_event::QueryTag;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Query {
+    pub tag: QueryTag,
+    pub query: String,
+    pub binds: Option<Vec<String>>,
+}
 
 pub struct SystemQuery {}
 
 impl SystemQuery {
-    pub fn query_for(tag: QueryTag) -> Result<String> {
-        match tag {
-            QueryTag::ListTables => Ok(String::from(
+    pub fn query_for(tag: QueryTag) -> Result<Query> {
+        match tag.clone() {
+            QueryTag::ListTables => {
+                let query = String::from(
                 "
 SELECT
 	table_schema,
@@ -21,7 +30,9 @@ WHERE
 ORDER BY
 	table_schema, table_name ASC;
 ",
-            )),
+            );
+            Ok(Query { query, binds: None, tag })
+            }
             QueryTag::InitialTable(table_name) => {
                 if !{
                     let name: &str = &table_name;
@@ -31,9 +42,35 @@ ORDER BY
                     bail!(format!("Invalid table name found: {}", table_name))
                 }
                 let quoted = format!("\"{}\"", table_name.replace('"', "\"\""));
-                Ok(format!("SELECT * FROM {} LIMIT 1000;", quoted))
+                let query = format!("SELECT * FROM {} LIMIT 1000;", quoted);
+                Ok(Query { query, binds: None, tag: QueryTag::User }) // NOTE: user initiated
             }
-            QueryTag::User => Ok(String::new()), // NOTE: special case, not a system query
+            QueryTag::TableStructure(table_name) => {
+                let query = String::from(
+"
+SELECT
+	column_name,
+  udt_name as data_type,
+	column_default,
+	is_nullable,
+	character_maximum_length,
+	numeric_precision,
+	numeric_precision_radix
+FROM
+	information_schema.columns
+WHERE
+	table_name = $1
+ORDER BY
+	ordinal_position ASC;
+"
+                );
+                Ok(Query { query, binds: Some(vec![table_name]), tag })
+            }
+            QueryTag::User => {
+                // NOTE: special case, not a system query. Explictly matching this case to force
+                // matching against all meaningful variants.
+                Ok(Query { query: String::default(), binds: None, tag })
+            },
         }
     }
 }

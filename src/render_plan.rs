@@ -3,9 +3,9 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use crate::app::{ComponentId, Mode};
 
 #[derive(Clone, Default)]
-pub struct AppRenderPlan {}
+pub struct RenderPlan {}
 
-impl AppRenderPlan {
+impl RenderPlan {
     pub fn compute_layouts(&self, mode: Mode, root: Rect) -> Vec<(ComponentId, Rect)> {
         if mode == Mode::ConnectionMenu {
             let layout = Layout::vertical([
@@ -21,6 +21,11 @@ impl AppRenderPlan {
             ];
         }
 
+        let visible_table = match mode {
+            Mode::ExploreStructure => ComponentId::StructureTable,
+            _ => ComponentId::ResultsTable
+        };
+
         // Default:
         let outer_layout =
             Layout::horizontal([Constraint::Min(20), Constraint::Percentage(80)]).split(root);
@@ -33,7 +38,7 @@ impl AppRenderPlan {
         vec![
             (ComponentId::TableList, outer_layout[0]),
             (ComponentId::TextEditor, inner_layout[0]),
-            (ComponentId::ResultsTable, inner_layout[1]),
+            (visible_table, inner_layout[1]),
             (ComponentId::Messages, inner_layout[2]),
         ]
     }

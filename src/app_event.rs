@@ -26,4 +26,5 @@ pub enum QueryTag {
     User,
     ListTables,
     InitialTable(String),
+    TableStructure(String),
 }

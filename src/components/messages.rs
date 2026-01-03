@@ -52,7 +52,10 @@ impl Component for Messages {
 
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         match action {
-            Action::ExecuteQuery(_, QueryTag::User) | Action::OpenDbConnection(_) => {
+            Action::ExecuteQuery(query) if query.tag == QueryTag::User => {
+                self.message = None
+            },
+            Action::OpenDbConnection(_) => {
                 self.message = None
             }
             _ => {}
