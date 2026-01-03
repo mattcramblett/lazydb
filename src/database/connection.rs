@@ -1,5 +1,9 @@
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use color_eyre::eyre::bail;
+use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
+use sqlx::postgres::{PgColumn, PgRow};
 use sqlx::{
     Column, PgPool,
     postgres::{PgConnectOptions, PgPoolOptions},
@@ -43,9 +47,11 @@ impl DbConnection {
 
         let first_row = iter.peek();
         let mut columns: Vec<String> = vec![];
+        let mut col_info: Vec<PgColumn> = vec![];
 
         // Assume the first row has the same columns as the rest of the rows
         if let Some(row) = first_row {
+            col_info.append(&mut row.columns().to_vec());
             let mut cols: Vec<String> =
                 row.columns().iter().map(|c| c.name().to_string()).collect();
             columns.append(&mut cols);
@@ -59,9 +65,8 @@ impl DbConnection {
         let mut results: Vec<Vec<String>> = vec![];
         for row in iter {
             let mut r: Vec<String> = vec![];
-            for i in 0..columns.len() {
-                let val: String = row.try_get(i)?;
-                r.push(val);
+            for col in row.columns() {
+                r.push(Self::display_value(row, col)?);
             }
             results.push(r);
         }
@@ -96,5 +101,61 @@ impl DbConnection {
         }
 
         options
+    }
+
+    /// sqlx adds compile-time type safety for database types by connecting to a database at
+    /// compile-time. Since we don't know what the type will be until runtime, we have to check
+    /// possibilities.
+    fn display_value(row: &PgRow, col: &PgColumn) -> Result<String> {
+        let index = col.ordinal();
+        let null = "NULL".to_string();
+
+        if let Ok(val) = row.try_get::<Option<i16>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<i8>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<i32>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<i64>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<f32>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<f64>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<bigdecimal::BigDecimal>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<&[u8]>, _>(index) {
+            // Postgres bytea type: try utf-8 first for readability but fallback to hex
+            match val {
+                None => Ok(null),
+                Some(bytes) => {
+                    if let Ok(s) = str::from_utf8(bytes) {
+                        Ok(s.to_string())
+                    } else {
+                        Ok(format!("\\x{}", hex::encode(bytes)))
+                    }
+                }
+            }
+        } else if let Ok(val) = row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_rfc3339()))
+        } else if let Ok(val) = row.try_get::<Option<chrono::DateTime<chrono::Local>>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_rfc3339()))
+        } else if let Ok(val) = row.try_get::<Option<NaiveDateTime>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<NaiveDate>, _>(index) {
+            Ok(val.map_or(null, |v| v.format("%Y-%m-%d").to_string()))
+        } else if let Ok(val) = row.try_get::<Option<NaiveTime>, _>(index) {
+            Ok(val.map_or(null, |v| v.format("%H:%M:%S%.6f").to_string()))
+        } else if let Ok(val) = row.try_get::<Option<serde_json::Value>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<bool>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
+        } else if let Ok(val) = row.try_get::<Option<Vec<String>>, _>(index) {
+            Ok(val.map_or(null, |vals| vals.join(",")))
+        } else if let Ok(val) = row.try_get::<Option<String>, _>(index) {
+            Ok(val.unwrap_or(null))
+        } else {
+            bail!(format!("Unsupported type: {}", col.type_info()))
+        }
     }
 }
