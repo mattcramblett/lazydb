@@ -246,9 +246,7 @@ impl App {
                                 }
                                 Err(db_error) => tx.send(AppEvent::UserMessage(
                                     MessageType::Error,
-                                    db_error
-                                        .as_db_error()
-                                        .map_or(String::from("Unknown error"), |e| e.to_string()),
+                                    db_error.to_string()
                                 )),
                             }
                         });

@@ -1,8 +1,9 @@
-use std::{sync::Arc, time::SystemTime};
-
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tokio_postgres::{Client, NoTls, Row, types::Type};
+use sqlx::Row;
+use sqlx::{
+    Column, PgPool,
+    postgres::{PgConnectOptions, PgPoolOptions},
+};
 
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct ConnectionConfig {
@@ -15,7 +16,7 @@ pub struct ConnectionConfig {
 
 #[derive(Clone)]
 pub struct DbConnection {
-    db_client: Arc<Client>,
+    pool: PgPool,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,131 +28,73 @@ pub struct QueryResult {
 impl DbConnection {
     /// Creates a database connection with the given config
     pub async fn create(config: ConnectionConfig) -> color_eyre::Result<Self> {
-        let (client, connection) =
-            tokio_postgres::connect(&Self::make_connection_string(&config)?, NoTls).await?;
+        let options = Self::make_connection_opts(&config);
+        let pool = PgPoolOptions::new()
+            .max_connections(2)
+            .connect_with(options)
+            .await?;
 
-        // The connection object performs the actual communication with the database,
-        // so spawn it off to run on its own.
-        tokio::spawn(async move {
-            // TODO: tear this down when disconnecting.
-            if let Err(e) = connection.await {
-                eprintln!("connection error: {}", e);
-            }
-        });
-
-        Ok(Self { db_client: Arc::new(client) })
+        Ok(Self { pool })
     }
 
-    /// Returns a result from the given query
-    pub async fn get_query_result(
-        &self,
-        query: String,
-    ) -> Result<QueryResult, tokio_postgres::Error> {
-        let rows = self.db_client.query(&query, &[]).await?;
+    pub async fn get_query_result(&self, query: String) -> color_eyre::Result<QueryResult> {
+        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
+        let mut iter = rows.iter().peekable();
 
-        // Assume every row in the result has the same columns. Pre-compute how many columns to
-        // display.
-        let Some(first_row) = rows.first() else {
-            return Ok(QueryResult::default());
-        };
-        let col_count = first_row.columns().len();
-        let columns = first_row
-            .columns()
-            .iter()
-            .map(|c| c.name().to_string())
-            .collect();
+        let first_row = iter.peek();
+        let mut columns: Vec<String> = vec![];
+
+        // Assume the first row has the same columns as the rest of the rows
+        if let Some(row) = first_row {
+            let mut cols: Vec<String> =
+                row.columns().iter().map(|c| c.name().to_string()).collect();
+            columns.append(&mut cols);
+        } else {
+            return Ok(QueryResult {
+                rows: Default::default(),
+                columns: Default::default(),
+            });
+        }
+
         let mut results: Vec<Vec<String>> = vec![];
-
-        for row in rows {
-            let data_row = (0..col_count)
-                .map(|i| Self::value_to_string(&row, i).unwrap())
-                .collect();
-            results.push(data_row);
+        for row in iter {
+            let mut r: Vec<String> = vec![];
+            for i in 0..columns.len() {
+                let val: String = row.try_get(i)?;
+                r.push(val);
+            }
+            results.push(r);
         }
 
         Ok(QueryResult {
-            columns,
             rows: results,
+            columns,
         })
     }
 
-    /// Converts the postgres type to a formatted string for visual display
-    /// TODO: revisit and cover more types
-    fn value_to_string(row: &Row, i: usize) -> Result<String, tokio_postgres::Error> {
-        let col = &row.columns()[i];
-        let ty = col.type_();
-
-        let s = match *ty {
-            Type::BOOL => row
-                .try_get::<usize, Option<bool>>(i)
-                .map(|opt| opt.map_or("NULL".into(), |v| v.to_string()))?,
-            Type::INT2 => row
-                .try_get::<usize, Option<i16>>(i)
-                .map(|opt| opt.map_or("NULL".into(), |v| v.to_string()))?,
-            Type::INT4 => row
-                .try_get::<usize, Option<i32>>(i)
-                .map(|opt| opt.map_or("NULL".into(), |v| v.to_string()))?,
-            Type::INT8 => row
-                .try_get::<usize, Option<i64>>(i)
-                .map(|opt| opt.map_or("NULL".into(), |v| v.to_string()))?,
-            Type::FLOAT4 => row
-                .try_get::<usize, Option<f32>>(i)
-                .map(|opt| opt.map_or("NULL".into(), |v| v.to_string()))?,
-            Type::FLOAT8 => row
-                .try_get::<usize, Option<f64>>(i)
-                .map(|opt| opt.map_or("NULL".into(), |v| v.to_string()))?,
-            // text types
-            Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::NAME => row
-                .try_get::<usize, Option<String>>(i)
-                .map(|opt| opt.unwrap_or_else(|| "NULL".into()))?,
-            Type::BYTEA => row
-                .try_get::<usize, Option<Vec<u8>>>(i)
-                .map(|opt| opt.map_or("NULL".into(), |b| format!("<BYTEA {} bytes>", b.len())))?,
-            Type::TIMESTAMP | Type::TIMESTAMPTZ => {
-                // TODO: there might be a cleaner way with chrono that doesn't require `into`
-                row.try_get::<usize, Option<SystemTime>>(i).map(|opt| {
-                    opt.map_or("NULL".into(), |t| {
-                        let dt: DateTime<Utc> = t.into();
-                        dt.to_rfc3339()
-                    })
-                })?
-            }
-            Type::DATE => row
-                .try_get::<usize, Option<chrono::NaiveDate>>(i)
-                .map(|opt| opt.map_or("NULL".into(), |d| d.to_string()))?,
-            // Fallback: try String, then show type name
-            _ => match row.try_get::<usize, Option<String>>(i) {
-                Ok(opt) => opt.unwrap_or_else(|| "NULL".into()),
-                Err(_) => format!("<unsupported type: {}>", ty.name()),
-            },
-        };
-
-        Ok(s)
-    }
-
-    fn make_connection_string(config: &ConnectionConfig) -> color_eyre::Result<String> {
-        let mut result: Vec<String> = vec![];
+    fn make_connection_opts(config: &ConnectionConfig) -> PgConnectOptions {
+        let mut options = PgConnectOptions::default();
 
         if let Some(host) = &config.host {
-            result.push(format!("host={}", host).to_string());
+            options = options.host(host);
         }
 
         if let Some(port) = &config.port {
-            result.push(format!("port={}", port).to_string());
+            options = options.port(*port);
         }
 
         if let Some(user) = &config.user {
-            result.push(format!("user={}", user).to_string());
+            options = options.username(user);
         }
 
         if let Some(password) = &config.password {
-            result.push(format!("password={}", password).to_string());
+            options = options.password(password);
         }
 
         if let Some(db_name) = &config.database_name {
-            result.push(format!("dbname={}", db_name).to_string());
+            options = options.database(db_name);
         }
 
-        Ok(result.join(" "))
+        options
     }
 }
