@@ -2,7 +2,7 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use color_eyre::eyre::bail;
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use sqlx::{Postgres, Row};
 use sqlx::postgres::{PgColumn, PgRow};
 use sqlx::{
     Column, PgPool,
@@ -41,8 +41,14 @@ impl DbConnection {
         Ok(Self { pool })
     }
 
-    pub async fn get_query_result(&self, query: String) -> color_eyre::Result<QueryResult> {
-        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
+    pub async fn get_query_result(&self, query: String, binds: Option<Vec<String>>) -> color_eyre::Result<QueryResult> {
+        let mut sql = sqlx::query::<Postgres>(&query);
+        if let Some(params) = binds {
+            for value in params {
+                sql = sql.bind(value)
+            }
+        }
+        let rows = sql.fetch_all(&self.pool).await?;
         let mut iter = rows.iter().peekable();
 
         let first_row = iter.peek();

@@ -92,7 +92,7 @@ impl<'a> Component for TableList<'a> {
                     if let Some(selection) = self.selection() {
                         let table_name = selection.to_string();
                         return Ok(Some(Action::ExecuteQuery(
-                            SystemQuery::query_for(QueryTag::InitialTable(table_name.clone())),
+                            SystemQuery::query_for(QueryTag::InitialTable(table_name.clone()))?,
                             QueryTag::User, // tag as a User query, since they initiated the action
                         )));
                     }
@@ -151,7 +151,7 @@ impl<'a> Component for TableList<'a> {
         match event {
             // When a database connection is established, trigger a system query for the tables
             AppEvent::DbConnectionEstablished(_) => Ok(Some(Action::ExecuteQuery(
-                SystemQuery::query_for(QueryTag::ListTables),
+                SystemQuery::query_for(QueryTag::ListTables)?,
                 QueryTag::ListTables,
             ))),
             // Listen for when the query is returned

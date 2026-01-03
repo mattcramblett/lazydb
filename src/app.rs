@@ -239,7 +239,7 @@ impl App {
                     let tx = self.event_tx.clone();
                     if let Some(connection) = self.db_connection.clone() {
                         tokio::spawn(async move {
-                            let res = connection.get_query_result(query.clone()).await;
+                            let res = connection.get_query_result(query.clone(), None).await;
                             match res {
                                 Ok(query_result) => {
                                     tx.send(AppEvent::QueryResult(query_result, tag))
