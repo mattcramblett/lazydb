@@ -50,12 +50,14 @@ ORDER BY
 "
 SELECT
 	column_name,
-  udt_name as data_type,
+	CASE
+		WHEN udt_name IN ('varchar', 'bpchar') THEN concat(udt_name, '(', character_maximum_length, ')')
+		WHEN udt_name = 'numeric'
+		AND numeric_precision IS NOT NULL THEN concat('numeric(', numeric_precision, ',', numeric_scale, ')')
+		ELSE udt_name
+	END AS data_type,
 	column_default,
-	is_nullable,
-	character_maximum_length,
-	numeric_precision,
-	numeric_precision_radix
+	is_nullable
 FROM
 	information_schema.columns
 WHERE
