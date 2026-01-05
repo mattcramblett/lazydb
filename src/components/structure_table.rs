@@ -89,6 +89,8 @@ impl Component for StructureTable {
         if let AppEvent::QueryResult(result, QueryTag::TableStructure(table_name)) = event {
             self.table_name = Some(table_name);
             self.set_data(result.columns, result.rows);
+            // TODO: this also changes focused view which is jarring.
+            // Need a way to swap the visible table to this one without refocusing.
             return Ok(Some(Action::ChangeMode(Mode::ExploreStructure)));
         }
         Ok(None)
