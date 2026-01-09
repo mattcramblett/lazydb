@@ -1,5 +1,5 @@
-use color_eyre::eyre::bail;
 use color_eyre::Result;
+use color_eyre::eyre::bail;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +19,7 @@ impl SystemQuery {
         match tag.clone() {
             QueryTag::ListTables => {
                 let query = String::from(
-                "
+                    "
 SELECT
 	table_schema,
 	table_name
@@ -30,8 +30,12 @@ WHERE
 ORDER BY
 	table_schema, table_name ASC;
 ",
-            );
-            Ok(Query { query, binds: None, tag })
+                );
+                Ok(Query {
+                    query,
+                    binds: None,
+                    tag,
+                })
             }
             QueryTag::InitialTable(table_name) => {
                 if !{
@@ -43,37 +47,78 @@ ORDER BY
                 }
                 let quoted = format!("\"{}\"", table_name.replace('"', "\"\""));
                 let query = format!("SELECT * FROM {} LIMIT 1000;", quoted);
-                Ok(Query { query, binds: None, tag: QueryTag::User }) // NOTE: user initiated
+                Ok(Query {
+                    query,
+                    binds: None,
+                    tag: QueryTag::User,
+                }) // NOTE: user initiated
             }
             QueryTag::TableStructure(table_name) => {
                 let query = String::from(
 "
 SELECT
-	column_name,
+	col.column_name column_name,
 	CASE
 		WHEN udt_name IN ('varchar', 'bpchar') THEN concat(udt_name, '(', character_maximum_length, ')')
 		WHEN udt_name = 'numeric'
 		AND numeric_precision IS NOT NULL THEN concat('numeric(', numeric_precision, ',', numeric_scale, ')')
 		ELSE udt_name
 	END AS data_type,
-	column_default,
-	is_nullable
+	is_nullable,
+	CASE
+		WHEN column_default IS NULL THEN ''
+		ELSE column_default
+	END AS column_default,
+	CASE
+		WHEN rel.column_name IS NOT NULL THEN concat(rel.table_schema, '.', rel.table_name, '(', rel.column_name, ')')
+		ELSE ''
+	END AS foreign_key
 FROM
-	information_schema.columns
+	information_schema.columns col
+	LEFT JOIN (
+		SELECT
+			kcu.constraint_schema,
+			kcu.constraint_name,
+			kcu.table_schema,
+			kcu.table_name,
+			kcu.column_name,
+			kcu.ordinal_position,
+			kcu.position_in_unique_constraint
+		FROM
+			information_schema.key_column_usage kcu
+			JOIN information_schema.table_constraints tco ON kcu.constraint_schema = tco.constraint_schema
+			AND kcu.constraint_name = tco.constraint_name
+			AND tco.constraint_type = 'FOREIGN KEY'
+	) AS kcu ON col.table_schema = kcu.table_schema
+	AND col.table_name = kcu.table_name
+	AND col.column_name = kcu.column_name
+	LEFT JOIN information_schema.referential_constraints rco ON rco.constraint_name = kcu.constraint_name
+	AND rco.constraint_schema = kcu.table_schema
+	LEFT JOIN information_schema.key_column_usage rel ON rco.unique_constraint_name = rel.constraint_name
+	AND rco.unique_constraint_schema = rel.constraint_schema
+	AND rel.ordinal_position = kcu.position_in_unique_constraint
 WHERE
-	table_name = $1
+	col.table_schema NOT IN ('information_schema', 'pg_catalog')
+	AND col.table_schema = 'public' AND col.table_name = $1
 ORDER BY
-	ordinal_position ASC;
+	col.ordinal_position;
 "
                 );
-                Ok(Query { query, binds: Some(vec![table_name]), tag })
+                Ok(Query {
+                    query,
+                    binds: Some(vec![table_name]),
+                    tag,
+                })
             }
             QueryTag::User => {
                 // NOTE: special case, not a system query. Explictly matching this case to force
                 // matching against all meaningful variants.
-                Ok(Query { query: String::default(), binds: None, tag })
-            },
+                Ok(Query {
+                    query: String::default(),
+                    binds: None,
+                    tag,
+                })
+            }
         }
     }
 }
-
