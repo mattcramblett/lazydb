@@ -143,14 +143,18 @@ impl StructureTable {
         let table_rows = self
             .rows
             .iter()
-            .map(|r| Row::new(r.iter().map(|val| Cell::from(val.clone()))));
+            .enumerate()
+            .map(|(idx, r)| {
+                let color = if idx % 2 == 0 { Color::Rgb(30, 30, 30) } else { Color::Reset };
+                Row::new(r.iter().map(|val| Cell::from(val.clone()))).style(Style::default().bg(color))
+            });
 
         let table = Table::new(table_rows, self.widths.clone())
             .header(header)
             .block(self.make_block())
             .column_spacing(1)
             .style(Color::Blue)
-            .row_highlight_style(Style::new().on_black().bold())
+            .row_highlight_style(Style::new().on_dark_gray().bold())
             .column_highlight_style(Color::Gray)
             .cell_highlight_style(Style::new().reversed().yellow())
             .highlight_symbol("▷ ");
