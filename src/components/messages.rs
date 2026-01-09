@@ -34,7 +34,7 @@ impl Component for Messages {
                 .title(title)
                 .style(Style::new().fg(color))
                 .title_alignment(Alignment::Center)
-                .border_type(BorderType::Thick);
+                .border_type(BorderType::Plain);
             let paragraph = Paragraph::new(message).block(block);
             frame.render_widget(paragraph, area);
         } else {
@@ -43,7 +43,7 @@ impl Component for Messages {
                 .title("messages")
                 .style(Style::new().fg(Color::Blue))
                 .title_alignment(Alignment::Center)
-                .border_type(BorderType::Thick);
+                .border_type(BorderType::Plain);
             let paragraph = Paragraph::new(String::default()).block(block);
             frame.render_widget(paragraph, area);
         }
