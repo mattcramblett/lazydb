@@ -12,6 +12,12 @@ pub struct Query {
     pub binds: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Table {
+    pub schema: String,
+    pub name: String,
+}
+
 pub struct SystemQuery {}
 
 impl SystemQuery {
@@ -37,15 +43,26 @@ ORDER BY
                     tag,
                 })
             }
-            QueryTag::InitialTable(table_name) => {
+            QueryTag::InitialTable(table) => {
+                let re = Regex::new(r"^[A-Za-z_][A-Za-z0-9_]*$").unwrap();
                 if !{
-                    let name: &str = &table_name;
-                    let re = Regex::new(r"^[A-Za-z_][A-Za-z0-9_]*$").unwrap();
-                    re.is_match(name) && !name.is_empty() && name.len() <= 128
+                    re.is_match(&table.name)
+                        && !table.name.is_empty()
+                        && { table.name.len() <= 128 }
+                        && re.is_match(&table.schema)
+                        && !table.schema.is_empty()
+                        && { table.schema.len() <= 128 }
                 } {
-                    bail!(format!("Invalid table name found: {}", table_name))
+                    bail!(format!(
+                        "Invalid table name or schema found: {}.{}",
+                        table.schema, table.name
+                    ))
                 }
-                let quoted = format!("\"{}\"", table_name.replace('"', "\"\""));
+                let quoted = format!(
+                    "\"{}\".\"{}\"",
+                    table.schema.replace('"', "\"\""),
+                    table.name.replace('"', "\"\"")
+                );
                 let query = format!("SELECT * FROM {} LIMIT 1000;", quoted);
                 Ok(Query {
                     query,
@@ -53,7 +70,7 @@ ORDER BY
                     tag: QueryTag::User,
                 }) // NOTE: user initiated
             }
-            QueryTag::TableStructure(table_name) => {
+            QueryTag::TableStructure(table) => {
                 let query = String::from(
 "
 SELECT
@@ -99,14 +116,14 @@ FROM
 	AND rel.ordinal_position = kcu.position_in_unique_constraint
 WHERE
 	col.table_schema NOT IN ('information_schema', 'pg_catalog')
-	AND col.table_schema = 'public' AND col.table_name = $1
+	AND col.table_schema = $1 AND col.table_name = $2
 ORDER BY
 	col.ordinal_position;
 "
                 );
                 Ok(Query {
                     query,
-                    binds: Some(vec![table_name]),
+                    binds: Some(vec![table.schema, table.name]),
                     tag,
                 })
             }

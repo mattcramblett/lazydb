@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
-use crate::database::connection::{DbConnection, QueryResult};
+use crate::database::{
+    connection::{DbConnection, QueryResult},
+    system_query::Table,
+};
 
 /// App events are events triggered in the system that are not direct user actions (e.g. they will
 /// not have key maps tied directly to them.
@@ -25,6 +28,6 @@ pub enum QueryTag {
     /// User queries are triggered by the user and should be shown in the results table.
     User,
     ListTables,
-    InitialTable(String),
-    TableStructure(String),
+    InitialTable(Table),
+    TableStructure(Table),
 }

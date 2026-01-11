@@ -3,6 +3,7 @@ use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Alignment, Constraint, Layout},
     style::{Color, Modifier, Style},
+    text::Text,
     widgets::{Block, BorderType, List, ListState},
 };
 use tokio::sync::mpsc::UnboundedSender;
@@ -14,7 +15,7 @@ use crate::{
     app_event::{AppEvent, QueryTag},
     components::Component,
     config::Config,
-    database::system_query::SystemQuery,
+    database::system_query::{SystemQuery, Table},
 };
 
 pub struct TableList<'a> {
@@ -22,7 +23,8 @@ pub struct TableList<'a> {
     config: Config,
     list_state: ListState,
     focused: Option<FocusTarget>,
-    items: Vec<String>,
+    /// schema, table
+    items: Vec<(String, String)>,
     search_input: TextArea<'a>,
 }
 
@@ -80,8 +82,8 @@ impl<'a> Component for TableList<'a> {
                 Action::NavDown => {
                     // protect against excess navigation
                     if let Some(selected) = self.list_state.selected()
-                        && !self.display_items().is_empty()
-                        && selected >= self.display_items().len() - 1
+                        && self.display_items().count() > 0
+                        && selected >= self.display_items().count() - 1
                     {
                         return Ok(None);
                     }
@@ -90,19 +92,23 @@ impl<'a> Component for TableList<'a> {
                 Action::NavUp => self.list_state.select_previous(),
                 Action::MakeSelection => {
                     if let Some(selection) = self.selection() {
-                        let table_name = selection.to_string();
-                        return Ok(Some(Action::ExecuteQuery(
-                            SystemQuery::query_for(QueryTag::InitialTable(table_name.clone()))?,
-                        )));
+                        return Ok(Some(Action::ExecuteQuery(SystemQuery::query_for(
+                            QueryTag::InitialTable(Table {
+                                schema: selection.0,
+                                name: selection.1,
+                            }),
+                        )?)));
                     }
                     return Ok(None);
                 }
                 Action::ViewStructure => {
                     if let Some(selection) = self.selection() {
-                        let table_name = selection.to_string();
-                        return Ok(Some(Action::ExecuteQuery(
-                            SystemQuery::query_for(QueryTag::TableStructure(table_name.clone()))?,
-                        )));
+                        return Ok(Some(Action::ExecuteQuery(SystemQuery::query_for(
+                            QueryTag::TableStructure(Table {
+                                schema: selection.0,
+                                name: selection.1,
+                            }),
+                        )?)));
                     }
                     return Ok(None);
                 }
@@ -111,7 +117,7 @@ impl<'a> Component for TableList<'a> {
                         && let Some(selection) = self.selection()
                     {
                         let mut clip = clipboard;
-                        clip.set_text(selection)?
+                        clip.set_text(selection.1)?
                     }
                 }
                 Action::Search => {
@@ -166,7 +172,12 @@ impl<'a> Component for TableList<'a> {
                 self.items = result
                     .rows
                     .iter()
-                    .map(|r| r.get(1).cloned().unwrap_or_else(|| "---".into()))
+                    .map(|r| {
+                        (
+                            r.first().cloned().unwrap_or_else(|| "unknown".into()),
+                            r.get(1).cloned().unwrap_or_else(|| "???".into()),
+                        )
+                    })
                     .collect();
                 Ok(None)
             }
@@ -191,11 +202,14 @@ impl<'a> Component for TableList<'a> {
                 BorderType::Plain
             });
 
-        let list = List::new(self.display_items().clone())
-            .style(Color::Cyan)
-            .highlight_style(Modifier::REVERSED)
-            .highlight_symbol("▹ ")
-            .block(block);
+        // TODO: display the schema
+        let list = List::new(
+            self.display_items()
+                .map(|(_, table)| Text::styled(table, Color::Cyan)),
+        )
+        .highlight_style(Modifier::REVERSED)
+        .highlight_symbol("▹ ")
+        .block(block);
 
         let show_search = matches!(self.focused, Some(FocusTarget::Search)) || self.has_search();
 
@@ -213,16 +227,10 @@ impl<'a> Component for TableList<'a> {
 }
 
 impl<'a> TableList<'a> {
-    fn display_items(&self) -> Vec<String> {
-        if self.has_search() {
-            return self
-                .items
-                .iter()
-                .filter(|it| it.contains(&self.search_content()))
-                .cloned()
-                .collect::<Vec<String>>();
-        }
-        self.items.clone()
+    fn display_items(&self) -> impl Iterator<Item = &(String, String)> {
+        self.items
+            .iter()
+            .filter(move |(_, name)| !self.has_search() || name.contains(&self.search_content()))
     }
 
     fn search_content(&self) -> String {
@@ -233,11 +241,11 @@ impl<'a> TableList<'a> {
         !self.search_content().is_empty()
     }
 
-    fn selection(&self) -> Option<String> {
+    fn selection(&self) -> Option<(String, String)> {
         if let Some(index) = self.list_state.selected()
-            && let Some(selection) = self.display_items().get(index)
+            && let Some((schema, table)) = self.display_items().nth(index)
         {
-            return Some(String::from(selection));
+            return Some((schema.clone(), table.clone()));
         }
         None
     }
