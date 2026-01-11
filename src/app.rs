@@ -29,6 +29,7 @@ pub struct App {
     should_quit: bool,
     should_suspend: bool,
     mode: Mode,
+    zoom: bool,
     db_connection: Option<DbConnection>,
     last_tick_key_events: Vec<KeyEvent>,
     action_tx: mpsc::UnboundedSender<Action>,
@@ -91,6 +92,7 @@ impl App {
             should_suspend: false,
             config: Config::new()?,
             mode: Mode::default(),
+            zoom: false,
             db_connection: None,
             last_tick_key_events: Vec::new(),
             action_tx,
@@ -181,17 +183,27 @@ impl App {
                     // Key event does not match any keybind. Match on globally available keybinds.
                     // TODO: make these global keybinds configurable
                     match key.code {
+                        // Zoomed is toggled by pressing the same Mode keymap while already
+                        // actively in that mode. Switching to a new mode defaults to not zoomed.
                         KeyCode::Char('1') if key.modifiers == KeyModifiers::ALT => {
+                            let zoom = self.mode == Mode::ExploreTables && !self.zoom;
                             action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
+                            self.zoom = zoom;
                         }
                         KeyCode::Char('2') if key.modifiers == KeyModifiers::ALT => {
+                            let zoom = self.mode == Mode::EditQuery && !self.zoom;
                             action_tx.send(Action::ChangeMode(Mode::EditQuery))?;
+                            self.zoom = zoom;
                         }
                         KeyCode::Char('3') if key.modifiers == KeyModifiers::ALT => {
+                            let zoom = self.mode == Mode::ExploreResults && !self.zoom;
                             action_tx.send(Action::ChangeMode(Mode::ExploreResults))?;
+                            self.zoom = zoom;
                         }
                         KeyCode::Char('4') if key.modifiers == KeyModifiers::ALT => {
+                            let zoom = self.mode == Mode::ExploreStructure && !self.zoom;
                             action_tx.send(Action::ChangeMode(Mode::ExploreStructure))?;
+                            self.zoom = zoom;
                         }
                         _ => {}
                     }
@@ -286,8 +298,7 @@ impl App {
             match app_event.clone() {
                 AppEvent::DbConnectionEstablished(connection) => {
                     self.db_connection = Some(connection);
-                    self.action_tx
-                        .send(Action::ChangeMode(Mode::ExploreTables))?;
+                    self.action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
                 }
                 AppEvent::QueryResult(result, QueryTag::User) => {
                     self.event_tx.send(AppEvent::UserMessage(
@@ -314,7 +325,7 @@ impl App {
 
     fn render(&mut self, tui: &mut Tui) -> color_eyre::Result<()> {
         tui.draw(|frame| {
-            let layouts = self.render_plan.compute_layouts(self.mode, frame.area());
+            let layouts = self.render_plan.compute_layouts(self.mode, self.zoom, frame.area());
 
             for (comp_id, area) in layouts.iter() {
                 if let Some(comp) = self.components.get_mut(comp_id) {

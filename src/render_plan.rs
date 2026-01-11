@@ -6,27 +6,48 @@ use crate::app::{ComponentId, Mode};
 pub struct RenderPlan {}
 
 impl RenderPlan {
-    pub fn compute_layouts(&self, mode: Mode, root: Rect) -> Vec<(ComponentId, Rect)> {
-        if mode == Mode::ConnectionMenu {
-            let layout = Layout::vertical([
-                Constraint::Min(10),
-                Constraint::Fill(40),
-                Constraint::Min(5),
-            ])
-            .split(root);
-            return vec![
-                (ComponentId::Title, layout[0]),
-                (ComponentId::ConnectionMenu, layout[1]),
-                (ComponentId::Messages, layout[2]),
-            ];
-        }
-
+    pub fn compute_layouts(&self, mode: Mode, zoom: bool, root: Rect) -> Vec<(ComponentId, Rect)> {
         let visible_table = match mode {
             Mode::ExploreStructure => ComponentId::StructureTable,
-            _ => ComponentId::ResultsTable
+            _ => ComponentId::ResultsTable,
         };
 
-        // Default:
+        match mode {
+            // ConnectionMenu has a distinct layout, and no zooming.
+            Mode::ConnectionMenu => {
+                let layout = Layout::vertical([
+                    Constraint::Min(10),
+                    Constraint::Fill(40),
+                    Constraint::Min(5),
+                ])
+                .split(root);
+                return vec![
+                    (ComponentId::Title, layout[0]),
+                    (ComponentId::ConnectionMenu, layout[1]),
+                    (ComponentId::Messages, layout[2]),
+                ];
+            },
+            // Match against other modes when zoomed:
+            Mode::ExploreTables if zoom => {
+                let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
+                return vec![(ComponentId::TableList, layout[0])];
+            },
+            Mode::EditQuery if zoom => {
+                let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
+                return vec![(ComponentId::TextEditor, layout[0])];
+            },
+            Mode::ExploreResults if zoom => {
+                let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
+                return vec![(ComponentId::ResultsTable, layout[0])];
+            },
+            Mode::ExploreStructure if zoom => {
+                let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
+                return vec![(ComponentId::StructureTable, layout[0])];
+            },
+            _ => {}
+        }
+
+        // Default, non-zoomed layout:
         let outer_layout =
             Layout::horizontal([Constraint::Min(20), Constraint::Percentage(80)]).split(root);
         let inner_layout = Layout::vertical([
