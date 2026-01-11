@@ -8,6 +8,7 @@ use sqlx::{
     Column, PgPool,
     postgres::{PgConnectOptions, PgPoolOptions},
 };
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct ConnectionConfig {
@@ -158,6 +159,8 @@ impl DbConnection {
             Ok(val.map_or(null, |v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<Vec<String>>, _>(index) {
             Ok(val.map_or(null, |vals| vals.join(",")))
+        } else if let Ok(val) = row.try_get::<Option<Uuid>, _>(index) {
+            Ok(val.map_or(null, |v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<String>, _>(index) {
             Ok(val.unwrap_or(null))
         } else {
