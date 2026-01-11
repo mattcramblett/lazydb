@@ -2,12 +2,14 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use color_eyre::eyre::bail;
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
+use sqlx::postgres::types::PgTimeTz;
 use sqlx::{Postgres, Row};
 use sqlx::postgres::{PgColumn, PgRow};
 use sqlx::{
     Column, PgPool,
     postgres::{PgConnectOptions, PgPoolOptions},
 };
+use time::{Time, UtcOffset};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -153,6 +155,8 @@ impl DbConnection {
             Ok(val.map_or(null, |v| v.format("%Y-%m-%d").to_string()))
         } else if let Ok(val) = row.try_get::<Option<NaiveTime>, _>(index) {
             Ok(val.map_or(null, |v| v.format("%H:%M:%S%.6f").to_string()))
+        } else if let Ok(val) = row.try_get::<Option<PgTimeTz<Time, UtcOffset>>, _>(index) {
+            Ok(val.map_or(null, |v| format!("{} {}", v.time, v.offset)))
         } else if let Ok(val) = row.try_get::<Option<serde_json::Value>, _>(index) {
             Ok(val.map_or(null, |v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<bool>, _>(index) {
