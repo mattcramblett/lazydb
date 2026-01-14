@@ -26,24 +26,24 @@ impl RenderPlan {
                     (ComponentId::ConnectionMenu, layout[1]),
                     (ComponentId::Messages, layout[2]),
                 ];
-            },
+            }
             // Match against other modes when zoomed:
             Mode::ExploreTables if zoom => {
                 let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
                 return vec![(ComponentId::TableList, layout[0])];
-            },
+            }
             Mode::EditQuery if zoom => {
                 let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
                 return vec![(ComponentId::TextEditor, layout[0])];
-            },
+            }
             Mode::ExploreResults if zoom => {
                 let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
                 return vec![(ComponentId::ResultsTable, layout[0])];
-            },
+            }
             Mode::ExploreStructure if zoom => {
                 let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
                 return vec![(ComponentId::StructureTable, layout[0])];
-            },
+            }
             _ => {}
         }
 
@@ -56,8 +56,15 @@ impl RenderPlan {
             Constraint::Percentage(10),
         ])
         .split(outer_layout[1]);
+
+        let sidebar_comp = if matches!(mode, Mode::ExploreSchemas) {
+            ComponentId::SchemaList
+        } else {
+            ComponentId::TableList
+        };
+
         vec![
-            (ComponentId::TableList, outer_layout[0]),
+            (sidebar_comp, outer_layout[0]),
             (ComponentId::TextEditor, inner_layout[0]),
             (visible_table, inner_layout[1]),
             (ComponentId::Messages, inner_layout[2]),

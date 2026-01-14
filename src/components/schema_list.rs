@@ -1,3 +1,5 @@
+use std::collections::{HashSet};
+
 use arboard::Clipboard;
 use crossterm::event::KeyCode;
 use ratatui::{
@@ -15,18 +17,16 @@ use crate::{
     app_event::{AppEvent, QueryTag},
     components::Component,
     config::Config,
-    database::system_query::{SystemQuery, Table},
 };
 
-pub struct TableList<'a> {
+pub struct SchemaList<'a> {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     list_state: ListState,
     focused: Option<FocusTarget>,
     /// schema, table
-    items: Vec<(String, String)>,
+    items: Vec<String>,
     search_input: TextArea<'a>,
-    selected_schema: String,
 }
 
 enum FocusTarget {
@@ -34,10 +34,10 @@ enum FocusTarget {
     Search,
 }
 
-impl<'a> Default for TableList<'a> {
+impl<'a> Default for SchemaList<'a> {
     fn default() -> Self {
         let mut search_input = TextArea::default();
-        search_input.set_placeholder_text("Search tables");
+        search_input.set_placeholder_text("Search schemas");
         Self {
             command_tx: Default::default(),
             config: Default::default(),
@@ -45,12 +45,11 @@ impl<'a> Default for TableList<'a> {
             focused: None,
             items: Default::default(),
             search_input,
-            selected_schema: "public".to_string(),
         }
     }
 }
 
-impl<'a> Component for TableList<'a> {
+impl<'a> Component for SchemaList<'a> {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> color_eyre::Result<()> {
         self.command_tx = Some(tx);
         Ok(())
@@ -64,12 +63,8 @@ impl<'a> Component for TableList<'a> {
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         // Does not require focus:
         match action {
-            Action::ChangeMode(Mode::ExploreTables) => self.focused = Some(FocusTarget::List),
+            Action::ChangeMode(Mode::ExploreSchemas) => self.focused = Some(FocusTarget::List),
             Action::ChangeMode(_) => self.focused = None,
-            Action::ChangeSchema(schema) => {
-                self.selected_schema = schema;
-                return Ok(Some(Action::ChangeMode(Mode::ExploreTables)));
-            }
             _ => {}
         }
 
@@ -98,23 +93,7 @@ impl<'a> Component for TableList<'a> {
                 Action::NavUp => self.list_state.select_previous(),
                 Action::MakeSelection => {
                     if let Some(selection) = self.selection() {
-                        return Ok(Some(Action::ExecuteQuery(SystemQuery::query_for(
-                            QueryTag::InitialTable(Table {
-                                schema: selection.0,
-                                name: selection.1,
-                            }),
-                        )?)));
-                    }
-                    return Ok(None);
-                }
-                Action::ViewStructure => {
-                    if let Some(selection) = self.selection() {
-                        return Ok(Some(Action::ExecuteQuery(SystemQuery::query_for(
-                            QueryTag::TableStructure(Table {
-                                schema: selection.0,
-                                name: selection.1,
-                            }),
-                        )?)));
+                        return Ok(Some(Action::ChangeSchema(selection)))
                     }
                     return Ok(None);
                 }
@@ -123,12 +102,12 @@ impl<'a> Component for TableList<'a> {
                         && let Some(selection) = self.selection()
                     {
                         let mut clip = clipboard;
-                        clip.set_text(selection.1)?
+                        clip.set_text(selection)?
                     }
                 }
                 Action::Search => {
                     let mut text_area = TextArea::default();
-                    text_area.set_placeholder_text("Search tables");
+                    text_area.set_placeholder_text("Search schemas");
                     self.focused = Some(FocusTarget::Search);
                 }
                 _ => {}
@@ -140,7 +119,7 @@ impl<'a> Component for TableList<'a> {
             && self.focused.is_some()
         {
             let mut text_area = TextArea::default();
-            text_area.set_placeholder_text("Search tables");
+            text_area.set_placeholder_text("Search schemas");
             self.search_input = text_area;
             self.focused = Some(FocusTarget::List);
         }
@@ -169,35 +148,14 @@ impl<'a> Component for TableList<'a> {
         event: crate::app_event::AppEvent,
     ) -> color_eyre::Result<Option<Action>> {
         match event {
-            // When a database connection is established, trigger a system query for the tables
-            AppEvent::DbConnectionEstablished(_) => Ok(Some(Action::ExecuteQuery(
-                SystemQuery::query_for(QueryTag::ListTables)?,
-            ))),
-            // Listen for when the query is returned
+            // Listen for when the ListTables query is returned to populate schemas
             AppEvent::QueryResult(result, QueryTag::ListTables) => {
-                // If there is no "public" schema, then go with the first found.
-                if !result
-                    .rows
-                    .iter()
-                    .any(|r| r.first().map(|r| r == "public").unwrap_or(false))
-                {
-                    let it = result
-                        .rows
-                        .first()
-                        .map(|r| r.first().cloned())
-                        .unwrap_or(None);
-                    self.selected_schema = it.unwrap_or("unknown".to_string());
-                }
-
                 self.items = result
                     .rows
                     .iter()
-                    .map(|r| {
-                        (
-                            r.first().cloned().unwrap_or_else(|| "unknown".into()),
-                            r.get(1).cloned().unwrap_or_else(|| "???".into()),
-                        )
-                    })
+                    .map(|r| r.first().cloned().unwrap_or_else(|| "unknown".into()))
+                    .collect::<HashSet<String>>()
+                    .into_iter()
                     .collect();
                 Ok(None)
             }
@@ -213,7 +171,7 @@ impl<'a> Component for TableList<'a> {
         let has_focus = self.focused.is_some();
 
         let block = Block::bordered()
-            .title(format!("{} [alt+1]", self.selected_schema))
+            .title("Schemas [alt+0]")
             .style(Style::new().fg(if has_focus { Color::Cyan } else { Color::Blue }))
             .title_alignment(Alignment::Center)
             .border_type(if has_focus {
@@ -224,7 +182,7 @@ impl<'a> Component for TableList<'a> {
 
         let list = List::new(
             self.display_items()
-                .map(|(_, table)| Text::styled(table, Color::Cyan)),
+                .map(|schema| Text::styled(schema, Color::Cyan)),
         )
         .highlight_style(Modifier::REVERSED)
         .highlight_symbol("▹ ")
@@ -245,12 +203,11 @@ impl<'a> Component for TableList<'a> {
     }
 }
 
-impl<'a> TableList<'a> {
-    fn display_items(&self) -> impl Iterator<Item = &(String, String)> {
-        self.items.iter().filter(move |(schema, name)| {
-            (!self.has_search() || name.contains(&self.search_content()))
-                && schema == &self.selected_schema
-        })
+impl<'a> SchemaList<'a> {
+    fn display_items(&self) -> impl Iterator<Item = &String> {
+        self.items
+            .iter()
+            .filter(move |name| !self.has_search() || name.contains(&self.search_content()))
     }
 
     fn search_content(&self) -> String {
@@ -261,11 +218,11 @@ impl<'a> TableList<'a> {
         !self.search_content().is_empty()
     }
 
-    fn selection(&self) -> Option<(String, String)> {
+    fn selection(&self) -> Option<String> {
         if let Some(index) = self.list_state.selected()
-            && let Some((schema, table)) = self.display_items().nth(index)
+            && let Some(schema) = self.display_items().nth(index)
         {
-            return Some((schema.clone(), table.clone()));
+            return Some(schema.clone());
         }
         None
     }

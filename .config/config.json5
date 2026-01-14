@@ -39,6 +39,18 @@
       "esc": "Clear",
       "s": "ViewStructure",
     },
+    "ExploreSchemas": {
+      "<Ctrl-c>": "Quit",
+      "<Ctrl-z>": "Suspend",
+      "k": "NavUp",
+      "j": "NavDown",
+      "up": "NavUp",
+      "down": "NavDown",
+      "enter": "MakeSelection",
+      "y": "Yank",
+      "/": "Search",
+      "esc": "Clear",
+    },
     "ExploreStructure": {
       "<Ctrl-c>": "Quit",
       "<Ctrl-z>": "Suspend",

@@ -13,6 +13,7 @@ pub mod text_editor;
 pub mod results_table;
 pub mod messages;
 pub mod table_list;
+pub mod schema_list;
 pub mod structure_table;
 
 /// `Component` is a trait that represents a visual and interactive element of the user interface.

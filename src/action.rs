@@ -19,6 +19,7 @@ pub enum Action {
     MakeSelection,
     OpenDbConnection(String),
     ViewStructure,
+    ChangeSchema(String),
     ExecuteQuery(system_query::Query),
     NavDown,
     NavUp,

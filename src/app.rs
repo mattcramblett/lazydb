@@ -11,8 +11,8 @@ use crate::{
     app_event::{AppEvent, MessageType, QueryTag},
     components::{
         Component, connection_menu::ConnectionMenu, messages::Messages,
-        results_table::ResultsTable, structure_table::StructureTable, table_list::TableList,
-        text_editor::TextEditor, title::Title,
+        results_table::ResultsTable, schema_list::SchemaList, structure_table::StructureTable,
+        table_list::TableList, text_editor::TextEditor, title::Title,
     },
     config::Config,
     database::connection::DbConnection,
@@ -51,6 +51,8 @@ pub enum Mode {
     ExploreResults,
     /// Navigate the list of tables
     ExploreTables,
+    /// Navigate the list of schemas
+    ExploreSchemas,
     /// Navigate to the table's structure
     ExploreStructure,
 }
@@ -63,6 +65,7 @@ pub enum ComponentId {
     ResultsTable,
     Messages,
     TableList,
+    SchemaList,
     StructureTable,
 }
 
@@ -77,6 +80,7 @@ impl App {
         components.insert(ComponentId::ResultsTable, Box::new(ResultsTable::default()));
         components.insert(ComponentId::Messages, Box::new(Messages::default()));
         components.insert(ComponentId::TableList, Box::new(TableList::default()));
+        components.insert(ComponentId::SchemaList, Box::new(SchemaList::default()));
         components.insert(
             ComponentId::StructureTable,
             Box::new(StructureTable::default()),
@@ -185,6 +189,11 @@ impl App {
                     match key.code {
                         // Zoomed is toggled by pressing the same Mode keymap while already
                         // actively in that mode. Switching to a new mode defaults to not zoomed.
+                        KeyCode::Char('0') if key.modifiers == KeyModifiers::ALT => {
+                            let zoom = self.mode == Mode::ExploreSchemas && !self.zoom;
+                            action_tx.send(Action::ChangeMode(Mode::ExploreSchemas))?;
+                            self.zoom = zoom;
+                        }
                         KeyCode::Char('1') if key.modifiers == KeyModifiers::ALT => {
                             let zoom = self.mode == Mode::ExploreTables && !self.zoom;
                             action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
@@ -298,7 +307,8 @@ impl App {
             match app_event.clone() {
                 AppEvent::DbConnectionEstablished(connection) => {
                     self.db_connection = Some(connection);
-                    self.action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
+                    self.action_tx
+                        .send(Action::ChangeMode(Mode::ExploreTables))?;
                 }
                 AppEvent::QueryResult(result, QueryTag::User) => {
                     self.event_tx.send(AppEvent::UserMessage(
@@ -325,7 +335,9 @@ impl App {
 
     fn render(&mut self, tui: &mut Tui) -> color_eyre::Result<()> {
         tui.draw(|frame| {
-            let layouts = self.render_plan.compute_layouts(self.mode, self.zoom, frame.area());
+            let layouts = self
+                .render_plan
+                .compute_layouts(self.mode, self.zoom, frame.area());
 
             for (comp_id, area) in layouts.iter() {
                 if let Some(comp) = self.components.get_mut(comp_id) {
