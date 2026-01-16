@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Constraint},
     prelude::Rect,
     style::{Color, Style, Stylize},
-    widgets::{Block, BorderType, Cell, Row, StatefulWidget, Table, TableState},
+    widgets::{Block, BorderType, Cell, Row, Table, TableState},
 };
 
 use crate::{
@@ -100,8 +100,7 @@ impl Component for ResultsTable {
     }
 
     fn draw(&mut self, frame: &mut ratatui::Frame, area: Rect) -> color_eyre::Result<()> {
-        let table = &self.internal;
-        table.render(area, frame.buffer_mut(), &mut self.state.clone());
+        frame.render_stateful_widget(&self.internal, area, &mut self.state);
         Ok(())
     }
 }
