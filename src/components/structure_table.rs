@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Constraint},
     prelude::Rect,
     style::{Color, Style, Stylize},
-    widgets::{Block, BorderType, Cell, Row, StatefulWidget, Table, TableState},
+    widgets::{Block, BorderType, Cell, Row, Table, TableState},
 };
 
 use crate::{
@@ -23,8 +23,6 @@ pub struct StructureTable {
     rows: Vec<Vec<String>>,
     /// Widths to render for each column
     widths: Vec<Constraint>,
-    /// Internal table component being wrapped
-    internal: Table<'static>,
     /// Table state determining selections, etc.
     state: TableState,
     /// Name of table being displayed, if any
@@ -42,7 +40,6 @@ impl Default for StructureTable {
             rows: Default::default(),
             widths: Default::default(), // TODO: calculate column widths
             state: Default::default(),
-            internal: Default::default(),
             table_name: Default::default(),
             focused: false,
             command_tx: Default::default(),
@@ -60,8 +57,8 @@ impl Component for StructureTable {
             Action::NavUp if self.focused => self.state.select_previous(),
             Action::NavLeft if self.focused => self.state.select_previous_column(),
             Action::NavRight if self.focused => self.state.select_next_column(),
-            Action::ChangeMode(Mode::ExploreStructure) => self.update_focused(true),
-            Action::ChangeMode(_) => self.update_focused(false),
+            Action::ChangeMode(Mode::ExploreStructure) => self.focused = true,
+            Action::ChangeMode(_) => self.focused = false,
             Action::Yank => {
                 if let Ok(clipboard) = Clipboard::new() {
                     let mut clip = clipboard;
@@ -107,49 +104,20 @@ impl Component for StructureTable {
     }
 
     fn draw(&mut self, frame: &mut ratatui::Frame, area: Rect) -> color_eyre::Result<()> {
-        let table = &self.internal;
-        table.render(area, frame.buffer_mut(), &mut self.state.clone());
-        Ok(())
-    }
-}
-
-impl StructureTable {
-    /// Update the Block style when changing focus. This normally would be done inside `draw`, but
-    /// that would require cloning the internal Table. For performance reasons, avoid cloning
-    /// unless it's really necessary. This is a bit of a smell and may need revisited.
-    fn update_focused(&mut self, focused: bool) {
-        self.focused = focused;
-        let block = self.make_block();
-        self.internal = self.internal.clone().block(block);
-    }
-
-    /// Update the internal result data for display, and rebuild the table.
-    fn set_data(&mut self, new_cols: Vec<String>, new_rows: Vec<Vec<String>>) {
-        self.columns = new_cols;
-        self.rows = new_rows;
-        self.state = TableState::default();
-        self.build_internal();
-    }
-
-    /// Internally rebuild the underlying table component. Do this only when data changes for
-    /// performance.
-    fn build_internal(&mut self) {
-        let header = Row::new(self.columns.iter().map(|c| Cell::from(c.clone())))
+        let header = Row::new(self.columns.iter().map(|c| Cell::from(c.as_str())))
             .style(Style::new().bold())
             .bottom_margin(1);
 
-        // Build a Table<'static> from owned Strings by cloning the strings into the cells.
-        // This makes the Table own its text, so it doesn't borrow from temporary values.
         let table_rows = self
             .rows
             .iter()
             .enumerate()
             .map(|(idx, r)| {
                 let color = if idx % 2 == 0 { Color::Rgb(30, 30, 30) } else { Color::Reset };
-                Row::new(r.iter().map(|val| Cell::from(val.clone()))).style(Style::default().bg(color))
+                Row::new(r.iter().map(|val| Cell::from(val.as_str()))).style(Style::default().bg(color))
             });
 
-        let table = Table::new(table_rows, self.widths.clone())
+        let table = Table::new(table_rows, &self.widths)
             .header(header)
             .block(self.make_block())
             .column_spacing(1)
@@ -159,8 +127,16 @@ impl StructureTable {
             .cell_highlight_style(Style::new().reversed().yellow())
             .highlight_symbol("▷ ");
 
+        frame.render_stateful_widget(table, area, &mut self.state);
+        Ok(())
+    }
+}
+
+impl StructureTable {
+    fn set_data(&mut self, new_cols: Vec<String>, new_rows: Vec<Vec<String>>) {
+        self.columns = new_cols;
+        self.rows = new_rows;
         self.state = TableState::default();
-        self.internal = table;
     }
 
     fn make_block<'a>(&self) -> Block<'a> {
