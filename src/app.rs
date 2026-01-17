@@ -272,7 +272,7 @@ impl App {
                     if let Some(connection) = self.db_connection.clone() {
                         tokio::spawn(async move {
                             let res = connection
-                                .get_query_result(query.query.clone(), query.binds)
+                                .get_query_result(query.query.as_str(), query.binds)
                                 .await;
                             match res {
                                 Ok(query_result) => {

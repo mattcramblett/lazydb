@@ -44,8 +44,8 @@ impl DbConnection {
         Ok(Self { pool })
     }
 
-    pub async fn get_query_result(&self, query: String, binds: Option<Vec<String>>) -> color_eyre::Result<QueryResult> {
-        let mut sql = sqlx::query::<Postgres>(&query);
+    pub async fn get_query_result(&self, query: &str, binds: Option<Vec<String>>) -> color_eyre::Result<QueryResult> {
+        let mut sql = sqlx::query::<Postgres>(query);
         if let Some(params) = binds {
             for value in params {
                 sql = sql.bind(value)
