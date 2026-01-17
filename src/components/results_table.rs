@@ -107,7 +107,14 @@ impl Component for ResultsTable {
             } else {
                 Color::Reset
             };
-            Row::new(r.iter().map(|val| Cell::from(val.as_str()))).style(Style::default().bg(color))
+            Row::new(r.iter().map(|val| {
+                if val.is_empty() {
+                    Cell::from("EMPTY").fg(Color::Rgb(44, 44, 44))
+                } else {
+                    Cell::from(val.as_str())
+                }
+            }))
+            .style(Style::default().bg(color))
         });
 
         let table = Table::new(table_rows, &self.widths)
