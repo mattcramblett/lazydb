@@ -211,6 +211,7 @@ impl<'a> Component for TableList<'a> {
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
         let has_focus = self.focused.is_some();
+        let search_focused = matches!(self.focused, Some(FocusTarget::Search));
 
         let block = Block::bordered()
             .title(format!("{} [alt+1]", self.selected_schema))
@@ -222,15 +223,21 @@ impl<'a> Component for TableList<'a> {
                 BorderType::Plain
             });
 
-        let list = List::new(
-            self.display_items()
-                .map(|(_, table)| Text::styled(table, Color::Cyan)),
-        )
+        let list = List::new(self.display_items().map(|(_, table)| {
+            Text::styled(
+                table,
+                if search_focused {
+                    Color::DarkGray
+                } else {
+                    Color::Cyan
+                },
+            )
+        }))
         .highlight_style(Modifier::REVERSED)
         .highlight_symbol("▹ ")
         .block(block);
 
-        let show_search = matches!(self.focused, Some(FocusTarget::Search)) || self.has_search();
+        let show_search = search_focused || self.has_search();
 
         if show_search {
             let layout = Layout::vertical([Constraint::Min(1), Constraint::Fill(100)]).split(area);
