@@ -68,6 +68,7 @@ impl<'a> Component for TableList<'a> {
             Action::ChangeMode(_) => self.focused = None,
             Action::ChangeSchema(schema) => {
                 self.selected_schema = schema;
+                self.list_state = ListState::default().with_selected(Some(0));
                 return Ok(Some(Action::ChangeMode(Mode::ExploreTables)));
             }
             _ => {}
