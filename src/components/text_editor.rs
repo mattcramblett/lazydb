@@ -85,21 +85,24 @@ impl Component for TextEditor<'_> {
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) -> color_eyre::Result<Option<Action>> {
+        // Only handle arbitrary key events if the editor is in focus
+        if !self.focused {
+            return Ok(None);
+        }
+
         match key.code {
             // ctrl+r runs the query in the editor
             // TODO: make this keymap configurable
-            KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL && self.focused => {
+            KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
                 Ok(Some(Action::ExecuteQuery(Query {
                     query: self.query(),
                     tag: QueryTag::User,
                     binds: None,
                 })))
             }
-            // any other key we accept as editor input, only if focused
+            // any other key we accept as editor input
             _ => {
-                if self.focused {
-                    self.internal.input(key);
-                }
+                self.internal.input(key);
                 Ok(None)
             }
         }
