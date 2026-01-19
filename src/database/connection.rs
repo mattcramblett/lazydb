@@ -1,14 +1,14 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
-use color_eyre::eyre::bail;
 use color_eyre::Result;
+use color_eyre::eyre::bail;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::types::PgTimeTz;
-use sqlx::{Postgres, Row};
 use sqlx::postgres::{PgColumn, PgRow};
 use sqlx::{
     Column, PgPool,
     postgres::{PgConnectOptions, PgPoolOptions},
 };
+use sqlx::{Postgres, Row};
 use time::{Time, UtcOffset};
 use uuid::Uuid;
 
@@ -44,7 +44,11 @@ impl DbConnection {
         Ok(Self { pool })
     }
 
-    pub async fn get_query_result(&self, query: &str, binds: Option<Vec<String>>) -> color_eyre::Result<QueryResult> {
+    pub async fn get_query_result(
+        &self,
+        query: &str,
+        binds: Option<Vec<String>>,
+    ) -> color_eyre::Result<QueryResult> {
         let mut sql = sqlx::query::<Postgres>(query);
         if let Some(params) = binds {
             for value in params {

@@ -63,12 +63,12 @@ ORDER BY
                     table.schema.replace('"', "\"\""),
                     table.name.replace('"', "\"\"")
                 );
-                let query = format!("SELECT * FROM {} LIMIT 1000;", quoted);
+                let query = format!("SELECT * FROM {} LIMIT 250;", quoted);
                 Ok(Query {
                     query,
                     binds: None,
-                    tag: QueryTag::User,
-                }) // NOTE: user initiated
+                    tag,
+                })
             }
             QueryTag::TableStructure(table) => {
                 let query = String::from(

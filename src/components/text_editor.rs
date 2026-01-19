@@ -8,7 +8,8 @@ use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::TextArea;
 
 use crate::{
-    action::Action, app::Mode, app_event::QueryTag, components::Component, config::Config, database::system_query::Query,
+    action::Action, app::Mode, app_event::QueryTag, components::Component, config::Config,
+    database::system_query::Query,
 };
 
 /// Text editor for SQL statements.
@@ -70,6 +71,14 @@ impl Component for TextEditor<'_> {
         match action {
             Action::ChangeMode(Mode::EditQuery) => self.focused = true,
             Action::ChangeMode(_) => self.focused = false,
+            Action::ExecuteQuery(Query {
+                tag: QueryTag::InitialTable(_),
+                query,
+                ..
+            }) => {
+                self.internal.insert_newline();
+                self.internal.insert_str(query);
+            }
             _ => {}
         }
         Ok(None)
@@ -80,9 +89,11 @@ impl Component for TextEditor<'_> {
             // ctrl+r runs the query in the editor
             // TODO: make this keymap configurable
             KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL && self.focused => {
-                Ok(Some(Action::ExecuteQuery(
-                    Query{ query: self.query(), tag: QueryTag::User, binds: None }
-                )))
+                Ok(Some(Action::ExecuteQuery(Query {
+                    query: self.query(),
+                    tag: QueryTag::User,
+                    binds: None,
+                })))
             }
             // any other key we accept as editor input, only if focused
             _ => {
