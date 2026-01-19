@@ -71,6 +71,11 @@ impl Component for ResultsTable {
                     }
                 }
             }
+            Action::MakeSelection if self.focused => {
+                if let Some(selection) = self.cell_selection() {
+                    return Ok(Some(Action::SelectCell(selection)));
+                }
+            }
             _ => {}
         }
         Ok(None)
@@ -157,5 +162,14 @@ impl ResultsTable {
             } else {
                 BorderType::Plain
             })
+    }
+
+    fn cell_selection(&self) -> Option<String> {
+        if let Some((row_idx, col_idx)) = self.state.selected_cell()
+            && let Some(row) = self.rows.get(row_idx)
+        {
+            return row.get(col_idx).cloned();
+        }
+        None
     }
 }

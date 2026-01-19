@@ -27,5 +27,6 @@ pub enum Action {
     NavRight,
     Yank,
     Search,
-    Clear
+    Clear,
+    SelectCell(String),
 }

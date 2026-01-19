@@ -10,7 +10,7 @@ use crate::{
     action::Action,
     app_event::{AppEvent, MessageType, QueryTag},
     components::{
-        Component, connection_menu::ConnectionMenu, messages::Messages,
+        Component, cell_popup::CellPopup, connection_menu::ConnectionMenu, messages::Messages,
         results_table::ResultsTable, schema_list::SchemaList, structure_table::StructureTable,
         table_list::TableList, text_editor::TextEditor, title::Title,
     },
@@ -67,6 +67,7 @@ pub enum ComponentId {
     TableList,
     SchemaList,
     StructureTable,
+    CellPopup,
 }
 
 impl App {
@@ -85,6 +86,7 @@ impl App {
             ComponentId::StructureTable,
             Box::new(StructureTable::default()),
         );
+        components.insert(ComponentId::CellPopup, Box::new(CellPopup::default()));
         let render_plan = RenderPlan::default();
 
         Ok(Self {
@@ -352,6 +354,15 @@ impl App {
                         comp_id
                     )));
                 }
+            }
+
+            // Draw popups so they render outside of the standard layout.
+            if let Some(popup) = self.components.get_mut(&ComponentId::CellPopup)
+                && let Err(err) = popup.draw(frame, frame.area())
+            {
+                let _ = self
+                    .action_tx
+                    .send(Action::Error(format!("Failed to draw: {:?}", err)));
             }
         })?;
         Ok(())

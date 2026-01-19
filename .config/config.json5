@@ -25,6 +25,8 @@
       "left": "NavLeft",
       "right": "NavRight",
       "y": "Yank",
+      "enter": "MakeSelection",
+      "esc": "Clear",
     },
     "ExploreTables": {
       "<Ctrl-c>": "Quit",
