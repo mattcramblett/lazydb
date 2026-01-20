@@ -75,6 +75,9 @@ impl Component for ResultsTable {
                 if let Some(selection) = self.cell_selection() {
                     return Ok(Some(Action::SelectCell(selection)));
                 }
+                if let Some(row_selection) = self.row_selection() {
+                    return Ok(Some(Action::SelectRow(self.columns.clone(), row_selection)));
+                }
             }
             _ => {}
         }
@@ -169,6 +172,13 @@ impl ResultsTable {
             && let Some(row) = self.rows.get(row_idx)
         {
             return row.get(col_idx).cloned();
+        }
+        None
+    }
+
+    fn row_selection(&self) -> Option<Vec<String>> {
+        if let Some(index) = self.state.selected() {
+            return self.rows.get(index).cloned();
         }
         None
     }
