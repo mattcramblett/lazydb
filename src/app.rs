@@ -318,6 +318,12 @@ impl App {
                         format!("{} results", result.rows.len()),
                     ))?
                 }
+                AppEvent::QueryResult(result, QueryTag::InitialTable(_)) => {
+                    self.event_tx.send(AppEvent::UserMessage(
+                        MessageType::Info,
+                        format!("{} results", result.rows.len()),
+                    ))?
+                }
                 _ => {}
             }
             for (_, component) in self.components.iter_mut() {
