@@ -37,7 +37,7 @@ impl DbConnection {
     pub async fn create(config: ConnectionConfig) -> color_eyre::Result<Self> {
         let options = Self::make_connection_opts(&config);
         let pool = PgPoolOptions::new()
-            .max_connections(2)
+            .max_connections(1)
             .connect_with(options)
             .await?;
 
