@@ -1,10 +1,11 @@
 use arboard::Clipboard;
 use ratatui::{
-    layout::{Alignment, Constraint},
+    layout::Alignment,
     prelude::Rect,
     style::{Color, Style, Stylize},
     widgets::{Block, BorderType, Cell, Row, Table, TableState},
 };
+use unicode_width::UnicodeWidthStr;
 
 use crate::{
     action::Action,
@@ -22,7 +23,7 @@ pub struct ResultsTable {
     /// Result rows
     rows: Vec<Vec<String>>,
     /// Widths to render for each column
-    widths: Vec<Constraint>,
+    widths: Vec<u16>,
     /// Table state determining selections, etc.
     state: TableState,
     /// Whether this table is in focus
@@ -109,17 +110,40 @@ impl Component for ResultsTable {
     }
 
     fn draw(&mut self, frame: &mut ratatui::Frame, area: Rect) -> color_eyre::Result<()> {
-        let header = Row::new(self.columns.iter().map(|c| Cell::from(c.as_str())))
-            .style(Style::new().bold())
+        // TODO: implement horizontal scroll offset
+
+        // Clip the number of displayed columns based on calculated widths and visible space
+        let mut visible_cols = 0;
+        let mut visible_width = 0;
+        for width in self.widths.iter() {
+            // stop counting when columns will overflow, leaving some buffer for space between cols
+            if visible_width >= f32::round(area.width as f32 * 0.75) as u16 {
+                break;
+            }
+            visible_width += width;
+            visible_cols += 1;
+        }
+
+        let column_names = self.columns[0..visible_cols]
+            .iter()
+            .map(|c| Cell::from(c.as_str()));
+        let header_bg_color = if self.columns.is_empty() {
+                Color::Reset
+            } else {
+                Color::Rgb(18, 18, 18)
+            };
+        let header = Row::new(column_names)
+            .style(Style::new().bold().bg(header_bg_color))
             .bottom_margin(1);
+
         let table_rows = self.rows.iter().enumerate().map(|(idx, r)| {
-            // alternate bg colors
+            // alternate row colors
             let color = if idx % 2 == 0 {
                 Color::Rgb(30, 30, 30)
             } else {
                 Color::Reset
             };
-            Row::new(r.iter().map(|val| {
+            Row::new(r[0..visible_cols].iter().map(|val| {
                 if val.is_empty() {
                     Cell::from("EMPTY").fg(Color::Rgb(44, 44, 44))
                 } else {
@@ -129,10 +153,14 @@ impl Component for ResultsTable {
             .style(Style::default().bg(color))
         });
 
-        let table = Table::new(table_rows, &self.widths)
+        let widths = self.widths[0..visible_cols].iter();
+        
+        let table = Table::default()
+            .rows(table_rows)
+            .widths(widths.cloned())
             .header(header)
             .block(self.make_block())
-            .column_spacing(1)
+            .column_spacing(2)
             .style(Color::Blue)
             .row_highlight_style(Style::new().on_dark_gray().bold())
             .column_highlight_style(Color::Gray)
@@ -149,6 +177,7 @@ impl ResultsTable {
         self.columns = new_cols;
         self.rows = new_rows;
         self.state = TableState::default();
+        self.widths = self.calc_widths();
     }
 
     fn make_block<'a>(&self) -> Block<'a> {
@@ -181,5 +210,13 @@ impl ResultsTable {
             return self.rows.get(index).cloned();
         }
         None
+    }
+
+    fn calc_widths(&self) -> Vec<u16> {
+        let max = 120u16;
+        self.columns
+            .iter()
+            .map(|c| std::cmp::min(max, (c.width()) as u16))
+            .collect()
     }
 }
