@@ -28,6 +28,8 @@ pub struct ResultsTable {
     state: TableState,
     /// Whether this table is in focus
     focused: bool,
+    /// Column paging offset (scrolling columns left to right)
+    column_offset: usize,
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
 }
@@ -40,6 +42,7 @@ impl Default for ResultsTable {
             widths: Default::default(), // TODO: calculate column widths
             state: Default::default(),
             focused: false,
+            column_offset: 0,
             command_tx: Default::default(),
             config: Default::default(),
         };
@@ -89,6 +92,16 @@ impl Component for ResultsTable {
                     return Ok(Some(Action::SelectRow(self.columns.clone(), row_selection)));
                 }
             }
+            Action::PageLeft if self.focused => {
+                if self.column_offset > 0 {
+                    self.column_offset -= 1;
+                }
+            }
+            Action::PageRight if self.focused => {
+                if self.column_offset < self.columns.len() - 1 {
+                    self.column_offset += 1;
+                }
+            }
             _ => {}
         }
         Ok(None)
@@ -119,21 +132,20 @@ impl Component for ResultsTable {
     }
 
     fn draw(&mut self, frame: &mut ratatui::Frame, area: Rect) -> color_eyre::Result<()> {
-        // TODO: implement horizontal scroll offset
-
         // Clip the number of displayed columns based on calculated widths and visible space
         let mut visible_cols = 0;
         let mut visible_width = 0;
-        for width in self.widths.iter() {
+        for width in self.widths[self.column_offset..].iter() {
             // stop counting when columns will overflow, leaving some buffer for space between cols
-            if visible_width >= f32::round(area.width as f32 * 0.75) as u16 {
+            if visible_width >= f32::round(area.width as f32 * 0.7) as u16 {
                 break;
             }
             visible_width += width;
             visible_cols += 1;
         }
+        let col_range = self.column_offset..(visible_cols + self.column_offset);
 
-        let column_names = self.columns[0..visible_cols]
+        let column_names = self.columns[col_range.clone()]
             .iter()
             .map(|c| Cell::from(c.as_str()));
         let header_bg_color = if self.columns.is_empty() {
@@ -152,7 +164,7 @@ impl Component for ResultsTable {
             } else {
                 Color::Reset
             };
-            Row::new(r[0..visible_cols].iter().map(|val| {
+            Row::new(r[col_range.clone()].iter().map(|val| {
                 if val.is_empty() {
                     Cell::from("EMPTY").fg(Color::Rgb(44, 44, 44))
                 } else {
@@ -162,7 +174,7 @@ impl Component for ResultsTable {
             .style(Style::default().bg(color))
         });
 
-        let widths = self.widths[0..visible_cols].iter();
+        let widths = self.widths[col_range.clone()].iter();
         
         let table = Table::default()
             .rows(table_rows)
@@ -187,11 +199,12 @@ impl ResultsTable {
         self.rows = new_rows;
         self.state = TableState::default();
         self.widths = self.calc_widths();
+        self.column_offset = 0;
     }
 
     fn make_block<'a>(&self) -> Block<'a> {
         Block::bordered()
-            .title("results [alt+3]")
+            .title(format!("{} {}", "results [alt+3]", self.column_offset))
             .style(Style::new().fg(if self.focused {
                 Color::Cyan
             } else {
