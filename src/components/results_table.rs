@@ -57,6 +57,15 @@ impl Component for ResultsTable {
             Action::NavRight if self.focused => self.state.select_next_column(),
             Action::ChangeMode(Mode::ExploreResults) => self.focused = true,
             Action::ChangeMode(_) => self.focused = false,
+            Action::Clear if self.focused => {
+                if let Some(selection) = self.state.selected_cell() {
+                    // Clear the cell selection, but retain the row selection
+                    self.state.select_cell(None);
+                    self.state.select(Some(selection.0));
+                } else if self.state.selected().is_some() {
+                    self.state.select(None);
+                }
+            }
             Action::Yank => {
                 if let Ok(clipboard) = Clipboard::new() {
                     let mut clip = clipboard;
