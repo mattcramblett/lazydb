@@ -18,14 +18,14 @@ use crate::{
     database::system_query::{SystemQuery, Table},
 };
 
-pub struct TableList<'a> {
+pub struct TableList {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     list_state: ListState,
     focused: Option<FocusTarget>,
     /// schema, table
     items: Vec<(String, String)>,
-    search_input: TextArea<'a>,
+    search: Option<String>,
     selected_schema: String,
 }
 
@@ -34,23 +34,21 @@ enum FocusTarget {
     Search,
 }
 
-impl<'a> Default for TableList<'a> {
+impl Default for TableList {
     fn default() -> Self {
-        let mut search_input = TextArea::default();
-        search_input.set_placeholder_text("Search tables");
         Self {
             command_tx: Default::default(),
             config: Default::default(),
             list_state: ListState::default().with_selected(Some(0)),
             focused: None,
             items: Default::default(),
-            search_input,
+            search: None,
             selected_schema: "public".to_string(),
         }
     }
 }
 
-impl<'a> Component for TableList<'a> {
+impl Component for TableList {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> color_eyre::Result<()> {
         self.command_tx = Some(tx);
         Ok(())
@@ -140,9 +138,7 @@ impl<'a> Component for TableList<'a> {
         if let Action::Clear = action
             && self.focused.is_some()
         {
-            let mut text_area = TextArea::default();
-            text_area.set_placeholder_text("Search tables");
-            self.search_input = text_area;
+            self.search = None;
             self.focused = Some(FocusTarget::List);
         }
 
@@ -155,9 +151,19 @@ impl<'a> Component for TableList<'a> {
     ) -> color_eyre::Result<Option<Action>> {
         if let Some(FocusTarget::Search) = self.focused {
             match key.code {
-                KeyCode::Enter => {} // No new line, instead handle it as an app event
+                KeyCode::Enter => {} // No new line, instead handle it as an key event
                 _ => {
-                    self.search_input.input(key);
+                    let mut new_search = self.search.clone().unwrap_or_default();
+                    match key.code {
+                        KeyCode::Char(c) => new_search.push(c),
+                        KeyCode::Backspace => {
+                            if !new_search.is_empty() {
+                                new_search.pop();
+                            }
+                        }
+                        _ => {}, // Do not handle other events
+                    }
+                    self.search = Some(new_search.clone());
                     self.list_state.select_first();
                 }
             }
@@ -238,12 +244,18 @@ impl<'a> Component for TableList<'a> {
         .highlight_symbol("▹ ")
         .block(block);
 
-        let show_search = search_focused || self.has_search();
+        let show_search = search_focused || self.search.is_some();
 
         if show_search {
             let layout = Layout::vertical([Constraint::Min(1), Constraint::Fill(100)]).split(area);
 
-            frame.render_widget(&self.search_input, layout[0]);
+            let search_color = if search_focused { Color::White } else { Color::DarkGray };
+            let mut text_area = TextArea::from(self.search.clone());
+            text_area.move_cursor(tui_textarea::CursorMove::End);
+            text_area.set_style(Style::default().fg(search_color));
+            text_area.set_placeholder_text("Search tables");
+
+            frame.render_widget(&text_area, layout[0]);
             frame.render_stateful_widget(list, layout[1], &mut self.list_state.clone());
         } else {
             frame.render_stateful_widget(list, area, &mut self.list_state.clone());
@@ -253,20 +265,16 @@ impl<'a> Component for TableList<'a> {
     }
 }
 
-impl<'a> TableList<'a> {
+impl TableList {
     fn display_items(&self) -> impl Iterator<Item = &(String, String)> {
         self.items.iter().filter(move |(schema, name)| {
-            (!self.has_search() || name.contains(&self.search_content()))
+            (self.search.is_none() || name.contains(&self.search_content()))
                 && schema == &self.selected_schema
         })
     }
 
     fn search_content(&self) -> String {
-        self.search_input.lines().join("")
-    }
-
-    fn has_search(&self) -> bool {
-        !self.search_content().is_empty()
+        self.search.clone().unwrap_or_default()
     }
 
     fn selection(&self) -> Option<(String, String)> {

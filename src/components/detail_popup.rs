@@ -1,6 +1,5 @@
 use ratatui::{
-    layout::{Constraint, Flex, Layout},
-    widgets::{Block, Clear, Paragraph},
+    layout::{Constraint, Flex, Layout}, style::Color, widgets::{Block, Clear, Paragraph}
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -54,7 +53,7 @@ impl Component for DetailPopup {
     ) -> color_eyre::Result<()> {
         if let Some(content) = &self.content {
             // TODO: dynamically compute size?
-            let percent_x = 60;
+            let percent_x = 65;
             let percent_y = 20;
             let vertical = Layout::vertical([Constraint::Percentage(percent_y)]).flex(Flex::Center);
             let horizontal =
@@ -62,7 +61,7 @@ impl Component for DetailPopup {
             let [area] = vertical.areas(area);
             let [area] = horizontal.areas(area);
 
-            let block = Block::bordered().title("Value");
+            let block = Block::bordered().title("Value").style(Color::Cyan);
             let text = Paragraph::new(content.as_str()).block(block);
             frame.render_widget(Clear, area);
             frame.render_widget(text, area);
@@ -71,11 +70,11 @@ impl Component for DetailPopup {
             // - better format the column names with the values
             // - account for horizontal overflow
             let vertical = Layout::vertical([Constraint::Percentage(100)]).flex(Flex::Center);
-            let horizontal = Layout::horizontal([Constraint::Percentage(60)]).flex(Flex::Center);
+            let horizontal = Layout::horizontal([Constraint::Percentage(65)]).flex(Flex::Center);
             let [area] = vertical.areas(area);
             let [area] = horizontal.areas(area);
 
-            let block = Block::bordered().title("Row");
+            let block = Block::bordered().title("Row").style(Color::Cyan);
             let mut display = String::new();
             columns.iter().enumerate().for_each(|(idx, col)| {
                 display += format!(
