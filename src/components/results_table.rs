@@ -149,10 +149,10 @@ impl Component for ResultsTable {
             .iter()
             .map(|c| Cell::from(c.as_str()));
         let header_bg_color = if self.columns.is_empty() {
-                Color::Reset
-            } else {
-                Color::Rgb(18, 18, 18)
-            };
+            Color::Reset
+        } else {
+            Color::Rgb(18, 18, 18)
+        };
         let header = Row::new(column_names)
             .style(Style::new().bold().bg(header_bg_color))
             .bottom_margin(1);
@@ -175,7 +175,7 @@ impl Component for ResultsTable {
         });
 
         let widths = self.widths[col_range.clone()].iter();
-        
+
         let table = Table::default()
             .rows(table_rows)
             .widths(widths.cloned())
@@ -203,8 +203,17 @@ impl ResultsTable {
     }
 
     fn make_block<'a>(&self) -> Block<'a> {
+        let left_arrow = if self.column_offset > 0 { "<<" } else { "" };
+        let right_arrow = if !self.columns.is_empty() && self.column_offset < self.columns.len() - 1
+        {
+            ">>"
+        } else {
+            ""
+        };
+
         Block::bordered()
-            .title(format!("{} {}", "results [alt+3]", self.column_offset))
+            .title("results [alt+3]")
+            .title_bottom(format!("{}   {}", left_arrow, right_arrow))
             .style(Style::new().fg(if self.focused {
                 Color::Cyan
             } else {
