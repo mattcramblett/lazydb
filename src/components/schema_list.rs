@@ -153,7 +153,7 @@ impl<'a> Component for SchemaList<'a> {
                 self.items = result
                     .rows
                     .iter()
-                    .map(|r| r.first().cloned().unwrap_or_else(|| "unknown".into()))
+                    .map(|r| r.first().cloned().unwrap_or(None).unwrap_or(String::default()))
                     .collect::<HashSet<String>>()
                     .into_iter()
                     .collect();

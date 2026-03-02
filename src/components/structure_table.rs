@@ -20,7 +20,7 @@ pub struct StructureTable {
     /// Column names
     columns: Vec<String>,
     /// Result rows
-    rows: Vec<Vec<String>>,
+    rows: Vec<Vec<Option<String>>>,
     /// Widths to render for each column
     widths: Vec<Constraint>,
     /// Table state determining selections, etc.
@@ -66,11 +66,16 @@ impl Component for StructureTable {
                         && let Some(row) = self.rows.get(idx)
                         && let Some(val) = row.get(col)
                     {
-                        clip.set_text(val)? // copy cell value
+                        clip.set_text(val.clone().unwrap_or("NULL".to_string()))? // copy cell value
                     } else if let Some(idx) = self.state.selected()
                         && let Some(row) = self.rows.get(idx)
                     {
-                        clip.set_text(row.join(" "))?
+                        let row_str: String = row
+                            .iter()
+                            .map(|v| v.clone().unwrap_or(String::from("NULL")))
+                            .collect::<Vec<String>>()
+                            .join(" ");
+                        clip.set_text(row_str)?
                     }
                 }
             }
@@ -108,14 +113,28 @@ impl Component for StructureTable {
             .style(Style::new().bold())
             .bottom_margin(1);
 
-        let table_rows = self
-            .rows
-            .iter()
-            .enumerate()
-            .map(|(idx, r)| {
-                let color = if idx % 2 == 0 { Color::Rgb(30, 30, 30) } else { Color::Reset };
-                Row::new(r.iter().map(|val| Cell::from(val.as_str()))).style(Style::default().bg(color))
-            });
+        let table_rows = self.rows.iter().enumerate().map(|(idx, r)| {
+            let color = if idx % 2 == 0 {
+                Color::Rgb(30, 30, 30)
+            } else {
+                Color::Reset
+            };
+            // TODO: consolidate this logic with other table components
+            Row::new(
+                r.iter().map(|val| {
+                    if let Some(row_val) = val {
+                        if row_val.is_empty() {
+                            Cell::from("EMPTY").fg(Color::Rgb(44, 44, 44))
+                        } else {
+                            Cell::from(row_val.as_str())
+                        }
+                    } else {
+                        Cell::from("NULL").fg(Color::Rgb(38, 38, 38))
+                    }
+                }),
+            )
+            .style(Style::default().bg(color))
+        });
 
         let table = Table::new(table_rows, &self.widths)
             .header(header)
@@ -133,7 +152,7 @@ impl Component for StructureTable {
 }
 
 impl StructureTable {
-    fn set_data(&mut self, new_cols: Vec<String>, new_rows: Vec<Vec<String>>) {
+    fn set_data(&mut self, new_cols: Vec<String>, new_rows: Vec<Vec<Option<String>>>) {
         self.columns = new_cols;
         self.rows = new_rows;
         self.state = TableState::default();

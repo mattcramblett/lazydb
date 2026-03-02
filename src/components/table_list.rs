@@ -186,14 +186,14 @@ impl Component for TableList {
                 if !result
                     .rows
                     .iter()
-                    .any(|r| r.first().map(|r| r == "public").unwrap_or(false))
+                    .any(|r| r.first().map(|r| r.as_deref() == Some("public")).unwrap_or(false))
                 {
                     let it = result
                         .rows
                         .first()
                         .map(|r| r.first().cloned())
                         .unwrap_or(None);
-                    self.selected_schema = it.unwrap_or("unknown".to_string());
+                    self.selected_schema = it.unwrap_or(None).unwrap_or("unknown".to_string());
                 }
 
                 self.items = result
@@ -201,8 +201,8 @@ impl Component for TableList {
                     .iter()
                     .map(|r| {
                         (
-                            r.first().cloned().unwrap_or_else(|| "unknown".into()),
-                            r.get(1).cloned().unwrap_or_else(|| "???".into()),
+                            r.first().cloned().unwrap_or(None).unwrap_or("unknown".into()),
+                            r.get(1).cloned().unwrap_or(None).unwrap_or("???".into()),
                         )
                     })
                     .collect();

@@ -31,5 +31,5 @@ pub enum Action {
     Search,
     Clear,
     SelectCell(String),
-    SelectRow(Vec<String>, Vec<String>), // columns, row
+    SelectRow(Vec<String>, Vec<Option<String>>), // columns, row
 }

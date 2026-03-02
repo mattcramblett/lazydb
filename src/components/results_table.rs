@@ -21,7 +21,7 @@ pub struct ResultsTable {
     /// Column names
     columns: Vec<String>,
     /// Result rows
-    rows: Vec<Vec<String>>,
+    rows: Vec<Vec<Option<String>>>,
     /// Widths to render for each column
     widths: Vec<u16>,
     /// Table state determining selections, etc.
@@ -39,7 +39,7 @@ impl Default for ResultsTable {
         let mut def = Self {
             columns: Default::default(),
             rows: Default::default(),
-            widths: Default::default(), // TODO: calculate column widths
+            widths: Default::default(),
             state: Default::default(),
             focused: false,
             column_offset: 0,
@@ -76,11 +76,17 @@ impl Component for ResultsTable {
                         && let Some(row) = self.rows.get(idx)
                         && let Some(val) = row.get(col)
                     {
-                        clip.set_text(val)? // copy cell value
+                        clip.set_text(val.clone().unwrap_or(String::from("NULL")))? // copy cell value
                     } else if let Some(idx) = self.state.selected()
                         && let Some(row) = self.rows.get(idx)
                     {
-                        clip.set_text(row.join(" "))?
+                        let row_str: String = row
+                            .iter()
+                            .map(|v| v.clone()
+                            .unwrap_or(String::from("NULL")))
+                            .collect::<Vec<String>>()
+                            .join(" ");
+                        clip.set_text(row_str)?
                     }
                 }
             }
@@ -165,10 +171,14 @@ impl Component for ResultsTable {
                 Color::Reset
             };
             Row::new(r[col_range.clone()].iter().map(|val| {
-                if val.is_empty() {
-                    Cell::from("EMPTY").fg(Color::Rgb(44, 44, 44))
+                if let Some(row_val) = val {
+                    if row_val.is_empty() {
+                        Cell::from("EMPTY").fg(Color::Rgb(44, 44, 44))
+                    } else {
+                        Cell::from(row_val.as_str())
+                    }
                 } else {
-                    Cell::from(val.as_str())
+                    Cell::from("NULL").fg(Color::Rgb(38, 38, 38))
                 }
             }))
             .style(Style::default().bg(color))
@@ -194,7 +204,7 @@ impl Component for ResultsTable {
 }
 
 impl ResultsTable {
-    fn set_data(&mut self, new_cols: Vec<String>, new_rows: Vec<Vec<String>>) {
+    fn set_data(&mut self, new_cols: Vec<String>, new_rows: Vec<Vec<Option<String>>>) {
         self.columns = new_cols;
         self.rows = new_rows;
         self.state = TableState::default();
@@ -229,14 +239,14 @@ impl ResultsTable {
 
     fn cell_selection(&self) -> Option<String> {
         if let Some((row_idx, col_idx)) = self.state.selected_cell()
-            && let Some(row) = self.rows.get(row_idx)
+            && let Some(row) = self.rows.get(row_idx) && let Some(cell) = row.get(col_idx)
         {
-            return row.get(col_idx).cloned();
+            return cell.clone()
         }
         None
     }
 
-    fn row_selection(&self) -> Option<Vec<String>> {
+    fn row_selection(&self) -> Option<Vec<Option<String>>> {
         if let Some(index) = self.state.selected() {
             return self.rows.get(index).cloned();
         }

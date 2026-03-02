@@ -8,7 +8,7 @@ use crate::{action::Action, components::Component, config::Config};
 #[derive(Default)]
 pub struct DetailPopup {
     content: Option<String>,
-    row_content: Option<(Vec<String>, Vec<String>)>,
+    row_content: Option<(Vec<String>, Vec<Option<String>>)>,
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
 }
@@ -77,11 +77,12 @@ impl Component for DetailPopup {
             let block = Block::bordered().title("Row").style(Color::Cyan);
             let mut display = String::new();
             columns.iter().enumerate().for_each(|(idx, col)| {
+                let null_display = Some(String::from("NULL"));
+                let val = row.get(idx).unwrap_or(&null_display);
                 display += format!(
                     "{}: {}\n",
                     col,
-                    row.get(idx)
-                        .unwrap_or(&String::from("<ERROR GETTING VALUE>"))
+                    val.clone().unwrap_or(String::from("<ERROR GETTING VALUE>"))
                 )
                 .as_str();
             });
