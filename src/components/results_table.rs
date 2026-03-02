@@ -141,12 +141,13 @@ impl Component for ResultsTable {
         // Clip the number of displayed columns based on calculated widths and visible space
         let mut visible_cols = 0;
         let mut visible_width = 0;
+        let column_space = 2;
         for width in self.widths[self.column_offset..].iter() {
             // stop counting when columns will overflow, leaving some buffer for space between cols
-            if visible_width >= f32::round(area.width as f32 * 0.7) as u16 {
+            if visible_width >= area.width {
                 break;
             }
-            visible_width += width;
+            visible_width += width + column_space * 2;
             visible_cols += 1;
         }
         let col_range = self.column_offset..(visible_cols + self.column_offset);
@@ -191,7 +192,7 @@ impl Component for ResultsTable {
             .widths(widths.cloned())
             .header(header)
             .block(self.make_block())
-            .column_spacing(2)
+            .column_spacing(column_space)
             .style(Color::Blue)
             .row_highlight_style(Style::new().on_dark_gray().bold())
             .column_highlight_style(Color::Gray)
