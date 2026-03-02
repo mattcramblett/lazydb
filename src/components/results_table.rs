@@ -1,6 +1,6 @@
 use arboard::Clipboard;
 use ratatui::{
-    layout::Alignment,
+    layout::{Alignment, Constraint},
     prelude::Rect,
     style::{Color, Style, Stylize},
     widgets::{Block, BorderType, Cell, Row, Table, TableState},
@@ -147,7 +147,7 @@ impl Component for ResultsTable {
             if visible_width >= area.width {
                 break;
             }
-            visible_width += width + column_space * 2 + 1;
+            visible_width += width + column_space * 2;
             visible_cols += 1;
         }
         let col_range = self.column_offset..(visible_cols + self.column_offset);
@@ -185,19 +185,18 @@ impl Component for ResultsTable {
             .style(Style::default().bg(color))
         });
 
-        let widths = self.widths[col_range.clone()].iter();
+        let widths = self.widths[col_range.clone()].iter().map(|len| Constraint::Length(*len));
 
         let table = Table::default()
             .rows(table_rows)
-            .widths(widths.cloned())
+            .widths(widths)
             .header(header)
             .block(self.make_block())
             .column_spacing(column_space)
             .style(Color::Blue)
             .row_highlight_style(Style::new().on_dark_gray().bold())
-            .column_highlight_style(Color::Gray)
             .cell_highlight_style(Style::new().reversed().yellow())
-            .highlight_symbol("▷ ");
+            .highlight_symbol("▷");
 
         frame.render_stateful_widget(table, area, &mut self.state);
         Ok(())
