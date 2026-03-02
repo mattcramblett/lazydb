@@ -143,11 +143,11 @@ impl Component for ResultsTable {
         let mut visible_width = 0;
         let column_space = 2;
         for width in self.widths[self.column_offset..].iter() {
-            // stop counting when columns will overflow, leaving some buffer for space between cols
+            // stop counting when columns will overflow, with additional buffer
             if visible_width >= area.width {
                 break;
             }
-            visible_width += width + column_space * 2;
+            visible_width += width + column_space * 2 + 1;
             visible_cols += 1;
         }
         let col_range = self.column_offset..(visible_cols + self.column_offset);
