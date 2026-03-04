@@ -1,7 +1,8 @@
 use ratatui::{
-    layout::{Constraint, Flex, Layout}, style::Color, widgets::{Block, Clear, Paragraph}
+    layout::{Constraint, Flex, Layout}, style::{Color, Stylize}, text::{Text}, widgets::{Block, Clear, List, ListItem, ListState, Paragraph}
 };
 use tokio::sync::mpsc::UnboundedSender;
+use unicode_width::UnicodeWidthStr;
 
 use crate::{action::Action, components::Component, config::Config};
 
@@ -11,6 +12,7 @@ pub struct DetailPopup {
     row_content: Option<(Vec<String>, Vec<Option<String>>)>,
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
+    list_state: ListState,
 }
 
 impl Component for DetailPopup {
@@ -39,7 +41,14 @@ impl Component for DetailPopup {
             }
             Action::Clear => {
                 self.row_content = None;
-                self.content = None
+                self.content = None;
+                self.list_state = ListState::default().with_selected(Some(0));
+            },
+            Action::NavDown if self.is_focused() => {
+                self.list_state.select_next();
+            },
+            Action::NavUp if self.is_focused() => {
+                self.list_state.select_previous();
             }
             _ => {}
         }
@@ -52,12 +61,10 @@ impl Component for DetailPopup {
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
         if let Some(content) = &self.content {
-            // TODO: dynamically compute size?
-            let percent_x = 65;
             let percent_y = 20;
+            let width = content.width() as u16 + 4;
             let vertical = Layout::vertical([Constraint::Percentage(percent_y)]).flex(Flex::Center);
-            let horizontal =
-                Layout::horizontal([Constraint::Percentage(percent_x)]).flex(Flex::Center);
+            let horizontal = Layout::horizontal([Constraint::Length(width)]).flex(Flex::Center);
             let [area] = vertical.areas(area);
             let [area] = horizontal.areas(area);
 
@@ -66,30 +73,38 @@ impl Component for DetailPopup {
             frame.render_widget(Clear, area);
             frame.render_widget(text, area);
         } else if let Some((columns, row)) = &self.row_content {
-            // TODO: use a list instead, with copying and scrolling functionality
-            // - better format the column names with the values
-            // - account for horizontal overflow
-            let vertical = Layout::vertical([Constraint::Percentage(100)]).flex(Flex::Center);
+            let vertical = Layout::vertical([Constraint::Length(columns.len() as u16 + 2)]).flex(Flex::Center);
             let horizontal = Layout::horizontal([Constraint::Percentage(65)]).flex(Flex::Center);
             let [area] = vertical.areas(area);
             let [area] = horizontal.areas(area);
 
             let block = Block::bordered().title("Row").style(Color::Cyan);
-            let mut display = String::new();
-            columns.iter().enumerate().for_each(|(idx, col)| {
-                let null_display = Some(String::from("NULL"));
-                let val = row.get(idx).unwrap_or(&null_display);
-                display += format!(
-                    "{}: {}\n",
-                    col,
-                    val.clone().unwrap_or(String::from("<ERROR GETTING VALUE>"))
-                )
-                .as_str();
+            let items = columns.iter().enumerate().map(|(idx, col)| {
+                let error_display = Some(String::from("<ERROR GETTING VALUE>"));
+                let val = row.get(idx).unwrap_or(&error_display);
+                let display_val = if val.is_some() {
+                    val.clone().unwrap().clone().white()
+                } else {
+                    String::from("NULL").dark_gray()
+                };
+
+                let mut text = Text::default();
+                text.push_span(col.clone().bold().cyan());
+                text.push_span(": ");
+                text.push_span(display_val);
+                ListItem::new(text)
             });
-            let text = Paragraph::new(display.as_str()).block(block);
+
+            let list = List::new(items).block(block);
             frame.render_widget(Clear, area);
-            frame.render_widget(text, area);
+            frame.render_stateful_widget(list, area, &mut self.list_state.clone());
         }
         Ok(())
+    }
+}
+
+impl DetailPopup {
+    fn is_focused(&self) -> bool {
+        self.content.is_some() || self.row_content.is_some()
     }
 }
