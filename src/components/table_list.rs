@@ -156,10 +156,8 @@ impl Component for TableList {
                     let mut new_search = self.search.clone().unwrap_or_default();
                     match key.code {
                         KeyCode::Char(c) => new_search.push(c),
-                        KeyCode::Backspace => {
-                            if !new_search.is_empty() {
-                                new_search.pop();
-                            }
+                        KeyCode::Backspace if !new_search.is_empty() => {
+                            new_search.pop();
                         }
                         _ => {} // Do not handle other events
                     }

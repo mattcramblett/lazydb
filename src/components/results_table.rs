@@ -97,15 +97,11 @@ impl Component for ResultsTable {
                     return Ok(Some(Action::SelectRow(self.columns.clone(), row_selection)));
                 }
             }
-            Action::PageLeft if self.focused => {
-                if self.column_offset > 0 {
-                    self.column_offset -= 1;
-                }
+            Action::PageLeft if self.focused && self.column_offset > 0 => {
+                self.column_offset -= 1;
             }
-            Action::PageRight if self.focused => {
-                if self.column_offset < self.columns.len() - 1 {
-                    self.column_offset += 1;
-                }
+            Action::PageRight if self.focused && self.column_offset < self.columns.len() - 1 => {
+                self.column_offset += 1;
             }
             _ => {}
         }
