@@ -46,7 +46,8 @@ impl Component for ConnectionMenu {
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
         match action {
             Action::MakeSelection => {
-                if let Some(idx) = self.list_state.selected() && self.focused
+                if let Some(idx) = self.list_state.selected()
+                    && self.focused
                     && let Some(connection_name) = self.items().get(idx)
                 {
                     return Ok(Some(Action::OpenDbConnection(connection_name.to_string())));

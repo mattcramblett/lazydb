@@ -24,7 +24,8 @@ impl Component for Title {
                                                  
 ",
         ))
-        .block(block).centered();
+        .block(block)
+        .centered();
         frame.render_widget(paragraph, area);
         Ok(())
     }

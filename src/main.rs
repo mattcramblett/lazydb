@@ -4,16 +4,16 @@ use cli::Cli;
 use crate::app::App;
 
 mod action;
-mod app_event;
 mod app;
+mod app_event;
 mod cli;
 mod components;
-mod render_plan;
 mod config;
+mod database;
 mod errors;
 mod logging;
+mod render_plan;
 mod tui;
-mod database;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {

@@ -1,5 +1,8 @@
 use ratatui::{
-    layout::{Constraint, Flex, Layout}, style::{Color, Stylize}, text::{Text}, widgets::{Block, Clear, List, ListItem, ListState, Paragraph}
+    layout::{Constraint, Flex, Layout},
+    style::{Color, Stylize},
+    text::Text,
+    widgets::{Block, Clear, List, ListItem, ListState, Paragraph},
 };
 use tokio::sync::mpsc::UnboundedSender;
 use unicode_width::UnicodeWidthStr;
@@ -43,10 +46,10 @@ impl Component for DetailPopup {
                 self.row_content = None;
                 self.content = None;
                 self.list_state = ListState::default().with_selected(Some(0));
-            },
+            }
             Action::NavDown if self.is_focused() => {
                 self.list_state.select_next();
-            },
+            }
             Action::NavUp if self.is_focused() => {
                 self.list_state.select_previous();
             }
@@ -73,7 +76,8 @@ impl Component for DetailPopup {
             frame.render_widget(Clear, area);
             frame.render_widget(text, area);
         } else if let Some((columns, row)) = &self.row_content {
-            let vertical = Layout::vertical([Constraint::Length(columns.len() as u16 + 2)]).flex(Flex::Center);
+            let vertical =
+                Layout::vertical([Constraint::Length(columns.len() as u16 + 2)]).flex(Flex::Center);
             let horizontal = Layout::horizontal([Constraint::Percentage(65)]).flex(Flex::Center);
             let [area] = vertical.areas(area);
             let [area] = horizontal.areas(area);

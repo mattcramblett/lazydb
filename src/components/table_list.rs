@@ -161,7 +161,7 @@ impl Component for TableList {
                                 new_search.pop();
                             }
                         }
-                        _ => {}, // Do not handle other events
+                        _ => {} // Do not handle other events
                     }
                     self.search = Some(new_search.clone());
                     self.list_state.select_first();
@@ -183,11 +183,11 @@ impl Component for TableList {
             // Listen for when the query is returned
             AppEvent::QueryResult(result, QueryTag::ListTables) => {
                 // If there is no "public" schema, then go with the first found.
-                if !result
-                    .rows
-                    .iter()
-                    .any(|r| r.first().map(|r| r.as_deref() == Some("public")).unwrap_or(false))
-                {
+                if !result.rows.iter().any(|r| {
+                    r.first()
+                        .map(|r| r.as_deref() == Some("public"))
+                        .unwrap_or(false)
+                }) {
                     let it = result
                         .rows
                         .first()
@@ -201,7 +201,10 @@ impl Component for TableList {
                     .iter()
                     .map(|r| {
                         (
-                            r.first().cloned().unwrap_or(None).unwrap_or("unknown".into()),
+                            r.first()
+                                .cloned()
+                                .unwrap_or(None)
+                                .unwrap_or("unknown".into()),
                             r.get(1).cloned().unwrap_or(None).unwrap_or("???".into()),
                         )
                     })
@@ -249,7 +252,11 @@ impl Component for TableList {
         if show_search {
             let layout = Layout::vertical([Constraint::Min(1), Constraint::Fill(100)]).split(area);
 
-            let search_color = if search_focused { Color::White } else { Color::DarkGray };
+            let search_color = if search_focused {
+                Color::White
+            } else {
+                Color::DarkGray
+            };
             let mut text_area = TextArea::from(self.search.clone());
             text_area.move_cursor(tui_textarea::CursorMove::End);
             text_area.set_style(Style::default().fg(search_color));

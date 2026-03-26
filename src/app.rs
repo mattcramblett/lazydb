@@ -10,7 +10,7 @@ use crate::{
     action::Action,
     app_event::{AppEvent, MessageType, QueryTag},
     components::{
-        Component, detail_popup::DetailPopup, connection_menu::ConnectionMenu, messages::Messages,
+        Component, connection_menu::ConnectionMenu, detail_popup::DetailPopup, messages::Messages,
         results_table::ResultsTable, schema_list::SchemaList, structure_table::StructureTable,
         table_list::TableList, text_editor::TextEditor, title::Title,
     },

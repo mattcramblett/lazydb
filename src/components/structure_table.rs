@@ -120,19 +120,17 @@ impl Component for StructureTable {
                 Color::Reset
             };
             // TODO: consolidate this logic with other table components
-            Row::new(
-                r.iter().map(|val| {
-                    if let Some(row_val) = val {
-                        if row_val.is_empty() {
-                            Cell::from("EMPTY").fg(Color::Rgb(44, 44, 44))
-                        } else {
-                            Cell::from(row_val.as_str())
-                        }
+            Row::new(r.iter().map(|val| {
+                if let Some(row_val) = val {
+                    if row_val.is_empty() {
+                        Cell::from("EMPTY").fg(Color::Rgb(44, 44, 44))
                     } else {
-                        Cell::from("NULL").fg(Color::Rgb(38, 38, 38))
+                        Cell::from(row_val.as_str())
                     }
-                }),
-            )
+                } else {
+                    Cell::from("NULL").fg(Color::Rgb(38, 38, 38))
+                }
+            }))
             .style(Style::default().bg(color))
         });
 

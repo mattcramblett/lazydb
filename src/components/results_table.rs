@@ -82,8 +82,7 @@ impl Component for ResultsTable {
                     {
                         let row_str: String = row
                             .iter()
-                            .map(|v| v.clone()
-                            .unwrap_or(String::from("NULL")))
+                            .map(|v| v.clone().unwrap_or(String::from("NULL")))
                             .collect::<Vec<String>>()
                             .join(" ");
                         clip.set_text(row_str)?
@@ -185,7 +184,9 @@ impl Component for ResultsTable {
             .style(Style::default().bg(color))
         });
 
-        let widths = self.widths[col_range.clone()].iter().map(|len| Constraint::Length(*len));
+        let widths = self.widths[col_range.clone()]
+            .iter()
+            .map(|len| Constraint::Length(*len));
 
         let table = Table::default()
             .rows(table_rows)
@@ -239,9 +240,10 @@ impl ResultsTable {
 
     fn cell_selection(&self) -> Option<String> {
         if let Some((row_idx, col_idx)) = self.state.selected_cell()
-            && let Some(row) = self.rows.get(row_idx) && let Some(cell) = row.get(col_idx)
+            && let Some(row) = self.rows.get(row_idx)
+            && let Some(cell) = row.get(col_idx)
         {
-            return cell.clone()
+            return cell.clone();
         }
         None
     }

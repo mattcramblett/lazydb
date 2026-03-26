@@ -1,4 +1,4 @@
-use std::collections::{HashSet};
+use std::collections::HashSet;
 
 use arboard::Clipboard;
 use crossterm::event::KeyCode;
@@ -93,7 +93,7 @@ impl<'a> Component for SchemaList<'a> {
                 Action::NavUp => self.list_state.select_previous(),
                 Action::MakeSelection => {
                     if let Some(selection) = self.selection() {
-                        return Ok(Some(Action::ChangeSchema(selection)))
+                        return Ok(Some(Action::ChangeSchema(selection)));
                     }
                     return Ok(None);
                 }
@@ -153,7 +153,12 @@ impl<'a> Component for SchemaList<'a> {
                 self.items = result
                     .rows
                     .iter()
-                    .map(|r| r.first().cloned().unwrap_or(None).unwrap_or(String::default()))
+                    .map(|r| {
+                        r.first()
+                            .cloned()
+                            .unwrap_or(None)
+                            .unwrap_or(String::default())
+                    })
                     .collect::<HashSet<String>>()
                     .into_iter()
                     .collect();
