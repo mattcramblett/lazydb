@@ -123,19 +123,19 @@ impl DbConnection {
         let index = col.ordinal();
 
         if let Ok(val) = row.try_get::<Option<i16>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<i8>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<i32>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<i64>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<f32>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<f64>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<bigdecimal::BigDecimal>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<&[u8]>, _>(index) {
             // Postgres bytea type: try utf-8 first for readability but fallback to hex
             match val {
@@ -149,25 +149,25 @@ impl DbConnection {
                 }
             }
         } else if let Ok(val) = row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_rfc3339())))
+            Ok(val.map(|v| v.to_rfc3339()))
         } else if let Ok(val) = row.try_get::<Option<chrono::DateTime<chrono::Local>>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_rfc3339())))
+            Ok(val.map(|v| v.to_rfc3339()))
         } else if let Ok(val) = row.try_get::<Option<NaiveDateTime>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<NaiveDate>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.format("%Y-%m-%d").to_string())))
+            Ok(val.map(|v| v.format("%Y-%m-%d").to_string()))
         } else if let Ok(val) = row.try_get::<Option<NaiveTime>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.format("%H:%M:%S%.6f").to_string())))
+            Ok(val.map(|v| v.format("%H:%M:%S%.6f").to_string()))
         } else if let Ok(val) = row.try_get::<Option<PgTimeTz<Time, UtcOffset>>, _>(index) {
-            Ok(val.map_or(None, |v| Some(format!("{} {}", v.time, v.offset))))
+            Ok(val.map(|v| format!("{} {}", v.time, v.offset)))
         } else if let Ok(val) = row.try_get::<Option<serde_json::Value>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<bool>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<Vec<String>>, _>(index) {
-            Ok(val.map_or(None, |vals| Some(vals.join(","))))
+            Ok(val.map(|vals| vals.join(",")))
         } else if let Ok(val) = row.try_get::<Option<Uuid>, _>(index) {
-            Ok(val.map_or(None, |v| Some(v.to_string())))
+            Ok(val.map(|v| v.to_string()))
         } else if let Ok(val) = row.try_get::<Option<String>, _>(index) {
             Ok(val)
         } else {
