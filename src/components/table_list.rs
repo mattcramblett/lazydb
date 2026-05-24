@@ -22,14 +22,17 @@ pub struct TableList {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     list_state: ListState,
-    focused: Option<FocusTarget>,
+    has_focus: bool,
+    focus_target: FocusTarget,
     /// schema, table
     items: Vec<(String, String)>,
     search: Option<String>,
     selected_schema: String,
 }
 
+#[derive(Default)]
 enum FocusTarget {
+    #[default]
     List,
     Search,
 }
@@ -40,7 +43,8 @@ impl Default for TableList {
             command_tx: Default::default(),
             config: Default::default(),
             list_state: ListState::default().with_selected(Some(0)),
-            focused: None,
+            has_focus: Default::default(),
+            focus_target: Default::default(),
             items: Default::default(),
             search: None,
             selected_schema: "public".to_string(),
@@ -49,6 +53,11 @@ impl Default for TableList {
 }
 
 impl Component for TableList {
+    fn set_focus(&mut self, focused: bool) -> color_eyre::Result<()> {
+        self.has_focus = focused;
+        Ok(())
+    }
+
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> color_eyre::Result<()> {
         self.command_tx = Some(tx);
         Ok(())
@@ -59,30 +68,18 @@ impl Component for TableList {
         Ok(())
     }
 
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
-        // Does not require focus:
-        match action {
-            Action::ChangeMode(Mode::ExploreTables) => self.focused = Some(FocusTarget::List),
-            Action::ChangeMode(_) => self.focused = None,
-            Action::ChangeSchema(schema) => {
-                self.selected_schema = schema;
-                self.list_state = ListState::default().with_selected(Some(0));
-                return Ok(Some(Action::ChangeMode(Mode::ExploreTables)));
-            }
-            _ => {}
-        }
-
+    fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
         // Actions for search input focused:
-        if let Some(FocusTarget::Search) = self.focused
+        if let FocusTarget::Search = self.focus_target
             && action == Action::MakeSelection
         {
             // Key inputs for typing search criteria are in `handle_key_event`
-            self.focused = Some(FocusTarget::List);
+            self.focus_target = FocusTarget::List;
             return Ok(None);
         }
 
         // Actions for list focused:
-        if let Some(FocusTarget::List) = self.focused {
+        if let FocusTarget::List = self.focus_target {
             match action {
                 Action::NavDown => {
                     // protect against excess navigation
@@ -97,23 +94,23 @@ impl Component for TableList {
                 Action::NavUp => self.list_state.select_previous(),
                 Action::MakeSelection => {
                     if let Some(selection) = self.selection() {
-                        return Ok(Some(Action::ExecuteQuery(SystemQuery::query_for(
-                            QueryTag::InitialTable(Table {
+                        return Ok(Some(AppEvent::QueryExecutionRequested(
+                            SystemQuery::query_for(QueryTag::InitialTable(Table {
                                 schema: selection.0,
                                 name: selection.1,
-                            }),
-                        )?)));
+                            }))?,
+                        )));
                     }
                     return Ok(None);
                 }
                 Action::ViewStructure => {
                     if let Some(selection) = self.selection() {
-                        return Ok(Some(Action::ExecuteQuery(SystemQuery::query_for(
-                            QueryTag::TableStructure(Table {
+                        return Ok(Some(AppEvent::QueryExecutionRequested(
+                            SystemQuery::query_for(QueryTag::TableStructure(Table {
                                 schema: selection.0,
                                 name: selection.1,
-                            }),
-                        )?)));
+                            }))?,
+                        )));
                     }
                     return Ok(None);
                 }
@@ -128,18 +125,16 @@ impl Component for TableList {
                 Action::Search => {
                     let mut text_area = TextArea::default();
                     text_area.set_placeholder_text("Search tables");
-                    self.focused = Some(FocusTarget::Search);
+                    self.focus_target = FocusTarget::Search;
                 }
                 _ => {}
             }
         }
 
         // Applicable for any focus target
-        if let Action::Clear = action
-            && self.focused.is_some()
-        {
+        if let Action::Clear = action {
             self.search = None;
-            self.focused = Some(FocusTarget::List);
+            self.focus_target = FocusTarget::List;
         }
 
         Ok(None)
@@ -148,8 +143,8 @@ impl Component for TableList {
     fn handle_key_event(
         &mut self,
         key: crossterm::event::KeyEvent,
-    ) -> color_eyre::Result<Option<Action>> {
-        if let Some(FocusTarget::Search) = self.focused {
+    ) -> color_eyre::Result<Option<AppEvent>> {
+        if let FocusTarget::Search = self.focus_target {
             match key.code {
                 KeyCode::Enter => {} // No new line, instead handle it as an key event
                 _ => {
@@ -172,14 +167,19 @@ impl Component for TableList {
     fn handle_app_events(
         &mut self,
         event: crate::app_event::AppEvent,
-    ) -> color_eyre::Result<Option<Action>> {
+    ) -> color_eyre::Result<Option<AppEvent>> {
         match event {
+            AppEvent::SchemaChangeRequested(schema) => {
+                self.selected_schema = schema;
+                self.list_state = ListState::default().with_selected(Some(0));
+                Ok(Some(AppEvent::ModeSwitched(Mode::ExploreTables)))
+            }
             // When a database connection is established, trigger a system query for the tables
-            AppEvent::DbConnectionEstablished(_) => Ok(Some(Action::ExecuteQuery(
+            AppEvent::DbConnectionEstablished(_) => Ok(Some(AppEvent::QueryExecutionRequested(
                 SystemQuery::query_for(QueryTag::ListTables)?,
             ))),
             // Listen for when the query is returned
-            AppEvent::QueryResult(result, QueryTag::ListTables) => {
+            AppEvent::QueryResultReturned(result, QueryTag::ListTables) => {
                 // If there is no "public" schema, then go with the first found.
                 if !result.rows.iter().any(|r| {
                     r.first()
@@ -218,14 +218,17 @@ impl Component for TableList {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
-        let has_focus = self.focused.is_some();
-        let search_focused = matches!(self.focused, Some(FocusTarget::Search));
+        let search_focused = matches!(self.focus_target, FocusTarget::Search);
 
         let block = Block::bordered()
             .title(format!("{} [alt+1]", self.selected_schema))
-            .style(Style::new().fg(if has_focus { Color::Cyan } else { Color::Blue }))
+            .style(Style::new().fg(if self.has_focus {
+                Color::Cyan
+            } else {
+                Color::Blue
+            }))
             .title_alignment(Alignment::Center)
-            .border_type(if has_focus {
+            .border_type(if self.has_focus {
                 BorderType::Thick
             } else {
                 BorderType::Plain

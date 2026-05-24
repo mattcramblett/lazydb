@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::prelude::Rect;
@@ -25,11 +25,12 @@ pub struct App {
     tick_rate: f64,
     frame_rate: f64,
     components: HashMap<ComponentId, Box<dyn Component>>,
+    focused_components: HashSet<ComponentId>,
     render_plan: RenderPlan,
-    should_quit: bool,
-    should_suspend: bool,
     mode: Mode,
     zoom: bool,
+    should_quit: bool,
+    should_suspend: bool,
     db_connection: Option<DbConnection>,
     last_tick_key_events: Vec<KeyEvent>,
     action_tx: mpsc::UnboundedSender<Action>,
@@ -55,6 +56,8 @@ pub enum Mode {
     ExploreSchemas,
     /// Navigate to the table's structure
     ExploreStructure,
+    /// View a focused detail of a row or cell
+    ViewDetail,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -94,11 +97,12 @@ impl App {
             frame_rate,
             components,
             render_plan,
+            mode: Mode::default(),
+            focused_components: HashSet::from([ComponentId::ConnectionMenu]),
+            zoom: false,
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
-            mode: Mode::default(),
-            zoom: false,
             db_connection: None,
             last_tick_key_events: Vec::new(),
             action_tx,
@@ -145,11 +149,43 @@ impl App {
         Ok(())
     }
 
+    fn switch_mode(&mut self, mode: Mode) -> color_eyre::Result<()> {
+        // Zoomed is toggled by pressing the same Mode keymap while already
+        // actively in that mode. Switching to a new mode defaults to not zoomed.
+        let zoom = self.mode == mode && !self.zoom;
+        self.mode = mode;
+        self.zoom = zoom;
+        self.focused_components = match mode {
+            Mode::ConnectionMenu => HashSet::from([ComponentId::ConnectionMenu]),
+            Mode::ExploreSchemas => HashSet::from([ComponentId::SchemaList]),
+            Mode::ExploreTables => HashSet::from([ComponentId::TableList]),
+            Mode::EditQuery => HashSet::from([ComponentId::TextEditor]),
+            Mode::ExploreResults => HashSet::from([ComponentId::ResultsTable]),
+            Mode::ExploreStructure => HashSet::from([ComponentId::StructureTable]),
+            Mode::ViewDetail => HashSet::from([ComponentId::DetailPopup]),
+        };
+        self.event_tx.send(AppEvent::UserMessage(
+            MessageType::Debug,
+            format!("Mode: {:?}", mode),
+        ))?;
+        self.event_tx.send(AppEvent::UserMessage(
+            MessageType::Debug,
+            format!("In focus: {:?}", self.focused_components),
+        ))?;
+
+        for (component_id, component) in self.components.iter_mut() {
+            let focused = self.focused_components.contains(component_id);
+            component.set_focus(focused)?;
+        }
+        Ok(())
+    }
+
     async fn handle_events(&mut self, tui: &mut Tui) -> color_eyre::Result<()> {
         let Some(event) = tui.next_event().await else {
             return Ok(());
         };
         let action_tx = self.action_tx.clone();
+        let event_tx = self.event_tx.clone();
         match event {
             crate::tui::Event::Quit => action_tx.send(Action::Quit)?,
             crate::tui::Event::Tick => action_tx.send(Action::Tick)?,
@@ -158,9 +194,11 @@ impl App {
             crate::tui::Event::Key(key) => self.handle_key_event(key)?,
             _ => {}
         }
-        for (_, component) in self.components.iter_mut() {
-            if let Some(action) = component.handle_events(Some(event.clone()))? {
-                action_tx.send(action)?;
+        for (component_id, component) in self.components.iter_mut() {
+            if self.focused_components.contains(component_id)
+                && let Some(app_event) = component.handle_events(Some(event.clone()))?
+            {
+                event_tx.send(app_event)?;
             }
         }
         Ok(())
@@ -189,32 +227,25 @@ impl App {
                     // Key event does not match any keybind. Match on globally available keybinds.
                     // TODO: make these global keybinds configurable
                     match key.code {
-                        // Zoomed is toggled by pressing the same Mode keymap while already
-                        // actively in that mode. Switching to a new mode defaults to not zoomed.
                         KeyCode::Char('0') if key.modifiers == KeyModifiers::ALT => {
-                            let zoom = self.mode == Mode::ExploreSchemas && !self.zoom;
-                            action_tx.send(Action::ChangeMode(Mode::ExploreSchemas))?;
-                            self.zoom = zoom;
+                            self.event_tx
+                                .send(AppEvent::ModeSwitched(Mode::ExploreSchemas))?;
                         }
                         KeyCode::Char('1') if key.modifiers == KeyModifiers::ALT => {
-                            let zoom = self.mode == Mode::ExploreTables && !self.zoom;
-                            action_tx.send(Action::ChangeMode(Mode::ExploreTables))?;
-                            self.zoom = zoom;
+                            self.event_tx
+                                .send(AppEvent::ModeSwitched(Mode::ExploreTables))?;
                         }
                         KeyCode::Char('2') if key.modifiers == KeyModifiers::ALT => {
-                            let zoom = self.mode == Mode::EditQuery && !self.zoom;
-                            action_tx.send(Action::ChangeMode(Mode::EditQuery))?;
-                            self.zoom = zoom;
+                            self.event_tx
+                                .send(AppEvent::ModeSwitched(Mode::EditQuery))?;
                         }
                         KeyCode::Char('3') if key.modifiers == KeyModifiers::ALT => {
-                            let zoom = self.mode == Mode::ExploreResults && !self.zoom;
-                            action_tx.send(Action::ChangeMode(Mode::ExploreResults))?;
-                            self.zoom = zoom;
+                            self.event_tx
+                                .send(AppEvent::ModeSwitched(Mode::ExploreResults))?;
                         }
                         KeyCode::Char('4') if key.modifiers == KeyModifiers::ALT => {
-                            let zoom = self.mode == Mode::ExploreStructure && !self.zoom;
-                            action_tx.send(Action::ChangeMode(Mode::ExploreStructure))?;
-                            self.zoom = zoom;
+                            self.event_tx
+                                .send(AppEvent::ModeSwitched(Mode::ExploreStructure))?;
                         }
                         _ => {}
                     }
@@ -228,6 +259,7 @@ impl App {
         while let Ok(action) = self.action_rx.try_recv() {
             if action != Action::Tick && action != Action::Render {
                 debug!("{action:?}");
+                self.event_tx.send(AppEvent::UserMessage(MessageType::Debug, format!("Action: {:?}", action)))?;
             }
             match action.clone() {
                 Action::Tick => {
@@ -239,8 +271,31 @@ impl App {
                 Action::ClearScreen => tui.terminal.clear()?,
                 Action::Resize(w, h) => self.handle_resize(tui, w, h)?,
                 Action::Render => self.render(tui)?,
-                Action::ChangeMode(new_mode) => self.mode = new_mode,
-                Action::OpenDbConnection(connection_name) => {
+                _ => {}
+            }
+            // Run `update` for focused components
+            for (component_id, component) in self.components.iter_mut() {
+                if self.focused_components.contains(component_id)
+                    && let Some(app_event) = component.update(action.clone())?
+                {
+                    self.event_tx.send(app_event)?
+                };
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_app_events(&mut self) -> color_eyre::Result<()> {
+        while let Ok(app_event) = self.event_rx.try_recv() {
+            match app_event.clone() {
+                AppEvent::ModeSwitched(mode) => self.switch_mode(mode)?,
+                AppEvent::RowSelected(_, _) => self
+                    .event_tx
+                    .send(AppEvent::ModeSwitched(Mode::ViewDetail))?,
+                AppEvent::CellSelected(_) => self
+                    .event_tx
+                    .send(AppEvent::ModeSwitched(Mode::ViewDetail))?,
+                AppEvent::DbConnectionRequested(connection_name) => {
                     if let Some(db_config) = self.config.db_connections.0.get(&connection_name) {
                         let config = db_config.clone();
                         let event_tx = self.event_tx.clone();
@@ -268,7 +323,11 @@ impl App {
                         error!("Attempted to open an unknown connection");
                     }
                 }
-                Action::ExecuteQuery(query) => {
+                AppEvent::DbConnectionEstablished(connection) => {
+                    self.db_connection = Some(connection);
+                    self.switch_mode(Mode::ExploreTables)?;
+                }
+                AppEvent::QueryExecutionRequested(query) => {
                     // When a query is executed, report the result back via an app event.
                     let tx = self.event_tx.clone();
                     if let Some(connection) = self.db_connection.clone() {
@@ -278,7 +337,7 @@ impl App {
                                 .await;
                             match res {
                                 Ok(query_result) => {
-                                    tx.send(AppEvent::QueryResult(query_result, query.tag))
+                                    tx.send(AppEvent::QueryResultReturned(query_result, query.tag))
                                 }
                                 Err(db_error) => tx.send(AppEvent::UserMessage(
                                     MessageType::Error,
@@ -293,32 +352,13 @@ impl App {
                         ))?;
                     }
                 }
-                _ => {}
-            }
-            for (_, component) in self.components.iter_mut() {
-                if let Some(action) = component.update(action.clone())? {
-                    self.action_tx.send(action)?
-                };
-            }
-        }
-        Ok(())
-    }
-
-    fn handle_app_events(&mut self) -> color_eyre::Result<()> {
-        while let Ok(app_event) = self.event_rx.try_recv() {
-            match app_event.clone() {
-                AppEvent::DbConnectionEstablished(connection) => {
-                    self.db_connection = Some(connection);
-                    self.action_tx
-                        .send(Action::ChangeMode(Mode::ExploreTables))?;
-                }
-                AppEvent::QueryResult(result, QueryTag::User) => {
+                AppEvent::QueryResultReturned(result, QueryTag::User) => {
                     self.event_tx.send(AppEvent::UserMessage(
                         MessageType::Info,
                         format!("{} results", result.rows.len()),
                     ))?
                 }
-                AppEvent::QueryResult(result, QueryTag::InitialTable(_)) => {
+                AppEvent::QueryResultReturned(result, QueryTag::InitialTable(_)) => {
                     self.event_tx.send(AppEvent::UserMessage(
                         MessageType::Info,
                         format!("{} results", result.rows.len()),
@@ -327,8 +367,8 @@ impl App {
                 _ => {}
             }
             for (_, component) in self.components.iter_mut() {
-                if let Some(action) = component.handle_app_events(app_event.clone())? {
-                    self.action_tx.send(action)?
+                if let Some(app_event) = component.handle_app_events(app_event.clone())? {
+                    self.event_tx.send(app_event)?
                 };
             }
         }
@@ -363,7 +403,8 @@ impl App {
             }
 
             // Draw popups so they render outside of the standard layout.
-            if let Some(popup) = self.components.get_mut(&ComponentId::DetailPopup)
+            if matches!(self.mode, Mode::ViewDetail)
+                && let Some(popup) = self.components.get_mut(&ComponentId::DetailPopup)
                 && let Err(err) = popup.draw(frame, frame.area())
             {
                 let _ = self

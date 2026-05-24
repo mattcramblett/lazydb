@@ -7,7 +7,9 @@ use ratatui::{
 use tokio::sync::mpsc::UnboundedSender;
 use unicode_width::UnicodeWidthStr;
 
-use crate::{action::Action, components::Component, config::Config};
+use crate::{
+    action::Action, app::Mode, app_event::AppEvent, components::Component, config::Config,
+};
 
 #[derive(Default)]
 pub struct DetailPopup {
@@ -29,29 +31,37 @@ impl Component for DetailPopup {
         Ok(())
     }
 
-    fn update(
-        &mut self,
-        action: crate::action::Action,
-    ) -> color_eyre::Result<Option<crate::action::Action>> {
+    fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
         match action {
-            Action::SelectRow(columns, row) => {
-                self.content = None;
-                self.row_content = Some((columns, row));
-            }
-            Action::SelectCell(content) => {
-                self.row_content = None;
-                self.content = Some(content);
-            }
+            // TODO: yank, search
             Action::Clear => {
                 self.row_content = None;
                 self.content = None;
                 self.list_state = ListState::default().with_selected(Some(0));
+                return Ok(Some(AppEvent::ModeSwitched(Mode::ExploreResults)));
             }
-            Action::NavDown if self.is_focused() => {
+            Action::NavDown => {
                 self.list_state.select_next();
             }
-            Action::NavUp if self.is_focused() => {
+            Action::NavUp => {
                 self.list_state.select_previous();
+            }
+            _ => {}
+        }
+        Ok(None)
+    }
+
+    fn handle_app_events(&mut self, event: AppEvent) -> color_eyre::Result<Option<AppEvent>> {
+        match event {
+            AppEvent::RowSelected(columns, row) => {
+                self.content = None;
+                self.row_content = Some((columns, row));
+                return Ok(None);
+            }
+            AppEvent::CellSelected(content) => {
+                self.row_content = None;
+                self.content = Some(content);
+                return Ok(None);
             }
             _ => {}
         }
@@ -104,11 +114,5 @@ impl Component for DetailPopup {
             frame.render_stateful_widget(list, area, &mut self.list_state.clone());
         }
         Ok(())
-    }
-}
-
-impl DetailPopup {
-    fn is_focused(&self) -> bool {
-        self.content.is_some() || self.row_content.is_some()
     }
 }

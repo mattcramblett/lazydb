@@ -2,7 +2,6 @@ use ratatui::prelude::Rect;
 
 use crate::{
     action::Action,
-    app::Mode,
     app_event::{AppEvent, QueryTag},
     components::Component,
     config::Config,
@@ -31,39 +30,32 @@ impl Default for ResultsTable {
 }
 
 impl Component for ResultsTable {
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
+    fn set_focus(&mut self, focused: bool) -> color_eyre::Result<()> {
+        self.data_table.focused = focused;
+        Ok(())
+    }
+
+    fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
         match action {
-            Action::NavDown if self.data_table.focused => self.data_table.state.select_next(),
-            Action::NavUp if self.data_table.focused => self.data_table.state.select_previous(),
-            Action::NavLeft if self.data_table.focused => {
-                self.data_table.state.select_previous_column()
-            }
-            Action::NavRight if self.data_table.focused => {
-                self.data_table.state.select_next_column()
-            }
-            Action::ChangeMode(Mode::ExploreResults) => {
-                self.data_table.focused = true;
-                self.data_table.focused = true;
-            }
-            Action::ChangeMode(_) => {
-                self.data_table.focused = false;
-                self.data_table.focused = false;
-            }
-            Action::Clear if self.data_table.focused => self.data_table.clear_selection(),
+            Action::NavDown => self.data_table.state.select_next(),
+            Action::NavUp => self.data_table.state.select_previous(),
+            Action::NavLeft => self.data_table.state.select_previous_column(),
+            Action::NavRight => self.data_table.state.select_next_column(),
+            Action::Clear => self.data_table.clear_selection(),
             Action::Yank => self.data_table.yank_selection()?,
-            Action::MakeSelection if self.data_table.focused => {
+            Action::MakeSelection => {
                 if let Some(selection) = self.data_table.cell_selection() {
-                    return Ok(Some(Action::SelectCell(selection)));
+                    return Ok(Some(AppEvent::CellSelected(selection)));
                 }
                 if let Some(row_selection) = self.data_table.row_selection() {
-                    return Ok(Some(Action::SelectRow(
+                    return Ok(Some(AppEvent::RowSelected(
                         self.data_table.columns.clone(),
                         row_selection,
                     )));
                 }
             }
-            Action::PageLeft if self.data_table.focused => self.data_table.scroll_left(),
-            Action::PageRight if self.data_table.focused => self.data_table.scroll_right(),
+            Action::PageLeft => self.data_table.scroll_left(),
+            Action::PageRight => self.data_table.scroll_right(),
             _ => {}
         }
         Ok(None)
@@ -72,10 +64,10 @@ impl Component for ResultsTable {
     fn handle_app_events(
         &mut self,
         event: crate::app_event::AppEvent,
-    ) -> color_eyre::Result<Option<Action>> {
+    ) -> color_eyre::Result<Option<AppEvent>> {
         match event {
-            AppEvent::QueryResult(result, QueryTag::User)
-            | AppEvent::QueryResult(result, QueryTag::InitialTable(_)) => {
+            AppEvent::QueryResultReturned(result, QueryTag::User)
+            | AppEvent::QueryResultReturned(result, QueryTag::InitialTable(_)) => {
                 self.data_table.set_data(result.columns, result.rows);
             }
             _ => {}

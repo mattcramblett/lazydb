@@ -13,7 +13,6 @@ use tui_textarea::TextArea;
 
 use crate::{
     action::Action,
-    app::Mode,
     app_event::{AppEvent, QueryTag},
     components::Component,
     config::Config,
@@ -23,13 +22,16 @@ pub struct SchemaList<'a> {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     list_state: ListState,
-    focused: Option<FocusTarget>,
+    has_focus: bool,
+    focus_target: FocusTarget,
     /// schema, table
     items: Vec<String>,
     search_input: TextArea<'a>,
 }
 
+#[derive(Default)]
 enum FocusTarget {
+    #[default]
     List,
     Search,
 }
@@ -42,7 +44,8 @@ impl<'a> Default for SchemaList<'a> {
             command_tx: Default::default(),
             config: Default::default(),
             list_state: ListState::default().with_selected(Some(0)),
-            focused: None,
+            has_focus: Default::default(),
+            focus_target: FocusTarget::default(),
             items: Default::default(),
             search_input,
         }
@@ -60,25 +63,18 @@ impl<'a> Component for SchemaList<'a> {
         Ok(())
     }
 
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
-        // Does not require focus:
-        match action {
-            Action::ChangeMode(Mode::ExploreSchemas) => self.focused = Some(FocusTarget::List),
-            Action::ChangeMode(_) => self.focused = None,
-            _ => {}
-        }
-
+    fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
         // Actions for search input focused:
-        if let Some(FocusTarget::Search) = self.focused
+        if let FocusTarget::Search = self.focus_target
             && action == Action::MakeSelection
         {
             // Key inputs for typing search criteria are in `handle_key_event`
-            self.focused = Some(FocusTarget::List);
+            self.focus_target = FocusTarget::List;
             return Ok(None);
         }
 
         // Actions for list focused:
-        if let Some(FocusTarget::List) = self.focused {
+        if let FocusTarget::List = self.focus_target {
             match action {
                 Action::NavDown => {
                     // protect against excess navigation
@@ -93,7 +89,7 @@ impl<'a> Component for SchemaList<'a> {
                 Action::NavUp => self.list_state.select_previous(),
                 Action::MakeSelection => {
                     if let Some(selection) = self.selection() {
-                        return Ok(Some(Action::ChangeSchema(selection)));
+                        return Ok(Some(AppEvent::SchemaChangeRequested(selection)));
                     }
                     return Ok(None);
                 }
@@ -108,20 +104,18 @@ impl<'a> Component for SchemaList<'a> {
                 Action::Search => {
                     let mut text_area = TextArea::default();
                     text_area.set_placeholder_text("Search schemas");
-                    self.focused = Some(FocusTarget::Search);
+                    self.focus_target = FocusTarget::Search;
                 }
                 _ => {}
             }
         }
 
         // Applicable for any focus target
-        if let Action::Clear = action
-            && self.focused.is_some()
-        {
+        if let Action::Clear = action {
             let mut text_area = TextArea::default();
             text_area.set_placeholder_text("Search schemas");
             self.search_input = text_area;
-            self.focused = Some(FocusTarget::List);
+            self.focus_target = FocusTarget::List;
         }
 
         Ok(None)
@@ -130,8 +124,8 @@ impl<'a> Component for SchemaList<'a> {
     fn handle_key_event(
         &mut self,
         key: crossterm::event::KeyEvent,
-    ) -> color_eyre::Result<Option<Action>> {
-        if let Some(FocusTarget::Search) = self.focused {
+    ) -> color_eyre::Result<Option<AppEvent>> {
+        if let FocusTarget::Search = self.focus_target {
             match key.code {
                 KeyCode::Enter => {} // No new line, instead handle it as an app event
                 _ => {
@@ -146,10 +140,10 @@ impl<'a> Component for SchemaList<'a> {
     fn handle_app_events(
         &mut self,
         event: crate::app_event::AppEvent,
-    ) -> color_eyre::Result<Option<Action>> {
+    ) -> color_eyre::Result<Option<AppEvent>> {
         match event {
             // Listen for when the ListTables query is returned to populate schemas
-            AppEvent::QueryResult(result, QueryTag::ListTables) => {
+            AppEvent::QueryResultReturned(result, QueryTag::ListTables) => {
                 self.items = result
                     .rows
                     .iter()
@@ -173,13 +167,11 @@ impl<'a> Component for SchemaList<'a> {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
-        let has_focus = self.focused.is_some();
-
         let block = Block::bordered()
             .title("Schemas [alt+0]")
-            .style(Style::new().fg(if has_focus { Color::Cyan } else { Color::Blue }))
+            .style(Style::new().fg(if self.has_focus { Color::Cyan } else { Color::Blue }))
             .title_alignment(Alignment::Center)
-            .border_type(if has_focus {
+            .border_type(if self.has_focus {
                 BorderType::Thick
             } else {
                 BorderType::Plain
@@ -193,7 +185,7 @@ impl<'a> Component for SchemaList<'a> {
         .highlight_symbol("▹ ")
         .block(block);
 
-        let show_search = matches!(self.focused, Some(FocusTarget::Search)) || self.has_search();
+        let show_search = matches!(self.focus_target, FocusTarget::Search) || self.has_search();
 
         if show_search {
             let layout = Layout::vertical([Constraint::Min(1), Constraint::Fill(100)]).split(area);

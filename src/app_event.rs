@@ -1,24 +1,33 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
-use crate::database::{
+use crate::{app::Mode, database::{
     connection::{DbConnection, QueryResult},
-    system_query::Table,
-};
+    system_query::{self, Table},
+}};
 
-/// App events are events triggered in the system that are not direct user actions (e.g. they will
-/// not have key maps tied directly to them.
+/// App events are global signals that can be produced and reacted upon by components, independent of
+/// current layout and do not require the component to be in focus.
+/// Events can be produced as a result of system-level triggers or indirectly through user initiated
+/// actions.
 #[derive(Clone)]
 pub enum AppEvent {
+    ModeSwitched(Mode),
+    DbConnectionRequested(String),
     DbConnectionEstablished(DbConnection),
-    QueryResult(QueryResult, QueryTag),
+    SchemaChangeRequested(String),
+    QueryExecutionRequested(system_query::Query),
+    QueryResultReturned(QueryResult, QueryTag),
     UserMessage(MessageType, String),
+    CellSelected(String),
+    RowSelected(Vec<String>, Vec<Option<String>>), // columns, row
 }
 
 #[derive(Clone)]
 pub enum MessageType {
     Error,
     Info,
+    Debug,
 }
 
 /// Queries performed can be tagged for specific listeners. Some queries are triggered by the system

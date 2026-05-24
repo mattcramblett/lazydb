@@ -6,8 +6,9 @@ use crate::{
 };
 use ratatui::{
     layout::Alignment,
-    style::{Color, Style},
-    widgets::{Block, BorderType, Paragraph},
+    style::{Color, Modifier, Style},
+    text::Text,
+    widgets::{Block, BorderType, List, ListState},
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -16,7 +17,7 @@ use tokio::sync::mpsc::UnboundedSender;
 pub struct Messages {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
-    message: Option<(MessageType, String)>,
+    message_history: Vec<(MessageType, String)>,
 }
 
 impl Component for Messages {
@@ -25,47 +26,42 @@ impl Component for Messages {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
-        if let Some((msg_type, message)) = self.message.clone() {
-            let (title, color) = match msg_type {
-                MessageType::Error => ("error", Color::Red),
-                MessageType::Info => ("messages", Color::Cyan),
-            };
-            let block = Block::bordered()
-                .title(title)
-                .style(Style::new().fg(color))
-                .title_alignment(Alignment::Center)
-                .border_type(BorderType::Plain);
-            let paragraph = Paragraph::new(message).block(block);
-            frame.render_widget(paragraph, area);
-        } else {
-            // empty state
-            let block = Block::bordered()
-                .title("messages")
-                .style(Style::new().fg(Color::Blue))
-                .title_alignment(Alignment::Center)
-                .border_type(BorderType::Plain);
-            let paragraph = Paragraph::new(String::default()).block(block);
-            frame.render_widget(paragraph, area);
-        }
-        Ok(())
-    }
+        let block = Block::bordered()
+            .title("messages")
+            .style(Style::new().fg(Color::Blue))
+            .title_alignment(Alignment::Center)
+            .border_type(BorderType::Plain);
 
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
-        match action {
-            Action::ExecuteQuery(query) if query.tag == QueryTag::User => self.message = None,
-            Action::OpenDbConnection(_) => self.message = None,
-            _ => {}
-        }
-        Ok(None)
+        let items = self.message_history.iter().map(|(msg_type, msg)| {
+            let style = if matches!(msg_type, MessageType::Error) {
+                Color::Red
+            } else {
+                Color::Cyan
+            };
+            Text::styled(msg, style)
+        });
+
+        let list = List::new(items)
+            .highlight_style(Modifier::REVERSED)
+            .block(block);
+        let mut state = ListState::default();
+        state.scroll_down_by(self.message_history.len().try_into().unwrap_or(0));
+
+        frame.render_stateful_widget(list, area, &mut state);
+        Ok(())
     }
 
     fn handle_app_events(
         &mut self,
         event: crate::app_event::AppEvent,
-    ) -> color_eyre::Result<Option<Action>> {
-        if let AppEvent::UserMessage(msg_type, msg) = event {
-            self.message = Some((msg_type, msg));
-        };
+    ) -> color_eyre::Result<Option<AppEvent>> {
+        match event {
+            AppEvent::QueryExecutionRequested(query) if query.tag == QueryTag::User => {
+                self.add_message(MessageType::Info, "Running...".to_string())
+            }
+            AppEvent::UserMessage(msg_type, msg) => self.add_message(msg_type, msg),
+            _ => {}
+        }
         Ok(None)
     }
 
@@ -77,5 +73,14 @@ impl Component for Messages {
     fn register_config_handler(&mut self, config: Config) -> color_eyre::Result<()> {
         self.config = config;
         Ok(())
+    }
+}
+
+impl Messages {
+    pub fn add_message(&mut self, message_type: MessageType, message: String) {
+        if self.message_history.len() > 100 {
+            self.message_history.remove(0);
+        }
+        self.message_history.push((message_type, message));
     }
 }

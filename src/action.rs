@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
-use crate::{app::Mode, database::system_query};
-
-/// Actions are user-driven events, which differ from AppEvents
+/// Actions are user-initiated events available for consumption by any in-focus component.
+/// Actions are configured by keybinds.
 #[derive(Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize)]
 pub enum Action {
     Tick,
@@ -15,12 +14,8 @@ pub enum Action {
     ClearScreen,
     Error(String),
     Help,
-    ChangeMode(Mode),
     MakeSelection,
-    OpenDbConnection(String),
     ViewStructure,
-    ChangeSchema(String),
-    ExecuteQuery(system_query::Query),
     NavDown,
     NavUp,
     NavLeft,
@@ -30,6 +25,4 @@ pub enum Action {
     Yank,
     Search,
     Clear,
-    SelectCell(String),
-    SelectRow(Vec<String>, Vec<Option<String>>), // columns, row
 }

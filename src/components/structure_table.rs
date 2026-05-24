@@ -2,12 +2,7 @@ use arboard::Clipboard;
 use ratatui::prelude::Rect;
 
 use crate::{
-    action::Action,
-    app::Mode,
-    app_event::{AppEvent, QueryTag},
-    components::Component,
-    config::Config,
-    widgets::data_table::DataTable,
+    action::Action, app::Mode, app_event::{AppEvent, QueryTag}, components::Component, config::Config, widgets::data_table::DataTable
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -38,21 +33,20 @@ impl Default for StructureTable {
 }
 
 impl Component for StructureTable {
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
+    fn set_focus(&mut self, focused: bool) -> color_eyre::Result<()> {
+        self.data_table.focused = focused;
+        Ok(())
+    }
+
+    fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
         match action {
-            Action::NavDown if self.data_table.focused => self.data_table.state.select_next(),
-            Action::NavUp if self.data_table.focused => self.data_table.state.select_previous(),
-            Action::NavLeft if self.data_table.focused => {
+            Action::NavDown => self.data_table.state.select_next(),
+            Action::NavUp => self.data_table.state.select_previous(),
+            Action::NavLeft => {
                 self.data_table.state.select_previous_column()
             }
-            Action::NavRight if self.data_table.focused => {
+            Action::NavRight => {
                 self.data_table.state.select_next_column()
-            }
-            Action::ChangeMode(Mode::ExploreStructure) => {
-                self.data_table.focused = true;
-            }
-            Action::ChangeMode(_) => {
-                self.data_table.focused = false;
             }
             Action::Yank => {
                 if let Ok(clipboard) = Clipboard::new() {
@@ -82,13 +76,11 @@ impl Component for StructureTable {
     fn handle_app_events(
         &mut self,
         event: crate::app_event::AppEvent,
-    ) -> color_eyre::Result<Option<Action>> {
-        if let AppEvent::QueryResult(result, QueryTag::TableStructure(table)) = event {
+    ) -> color_eyre::Result<Option<AppEvent>> {
+        if let AppEvent::QueryResultReturned(result, QueryTag::TableStructure(table)) = event {
             self.table_name = Some(table.name);
             self.set_data(result.columns, result.rows);
-            // TODO: this also changes focused view which is jarring.
-            // Need a way to swap the visible table to this one without refocusing.
-            return Ok(Some(Action::ChangeMode(Mode::ExploreStructure)));
+            return Ok(Some(AppEvent::ModeSwitched(Mode::ExploreStructure)));
         }
         Ok(None)
     }

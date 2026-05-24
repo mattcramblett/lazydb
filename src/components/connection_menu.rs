@@ -2,13 +2,12 @@ use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::Component;
-use crate::{action::Action, app::Mode, config::Config};
+use crate::{action::Action, app_event::AppEvent, config::Config};
 
 pub struct ConnectionMenu {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     list_state: ListState,
-    focused: bool,
 }
 
 impl Default for ConnectionMenu {
@@ -17,7 +16,6 @@ impl Default for ConnectionMenu {
             command_tx: Default::default(),
             config: Default::default(),
             list_state: ListState::default().with_selected(Some(0)),
-            focused: true, // NOTE: this is the first pane used in app startup, so focus it
         }
     }
 }
@@ -43,17 +41,16 @@ impl Component for ConnectionMenu {
         Ok(())
     }
 
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
+    fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
         match action {
             Action::MakeSelection => {
                 if let Some(idx) = self.list_state.selected()
-                    && self.focused
                     && let Some(connection_name) = self.items().get(idx)
                 {
-                    return Ok(Some(Action::OpenDbConnection(connection_name.to_string())));
+                    return Ok(Some(AppEvent::DbConnectionRequested(connection_name.to_string())));
                 }
             }
-            Action::NavDown if self.focused => {
+            Action::NavDown => {
                 // protect against excess navigation
                 if let Some(selected) = self.list_state.selected()
                     && !self.items().is_empty()
@@ -63,9 +60,7 @@ impl Component for ConnectionMenu {
                 }
                 self.list_state.select_next()
             }
-            Action::NavUp if self.focused => self.list_state.select_previous(),
-            Action::ChangeMode(Mode::ConnectionMenu) => self.focused = true,
-            Action::ChangeMode(_) => self.focused = false,
+            Action::NavUp => self.list_state.select_previous(),
             _ => {}
         }
         Ok(None)

@@ -70,7 +70,7 @@ pub trait Component {
     /// # Returns
     ///
     /// * [`color_eyre::Result<Option<Action>>`] - An action to be processed or none.
-    fn handle_events(&mut self, event: Option<Event>) -> color_eyre::Result<Option<Action>> {
+    fn handle_events(&mut self, event: Option<Event>) -> color_eyre::Result<Option<AppEvent>> {
         let action = match event {
             Some(Event::Key(key_event)) => self.handle_key_event(key_event)?,
             Some(Event::Mouse(mouse_event)) => self.handle_mouse_event(mouse_event)?,
@@ -86,8 +86,8 @@ pub trait Component {
     ///
     /// # Returns
     ///
-    /// * [`color_eyre::Result<Option<Action>>`] - An action to be processed or none.
-    fn handle_app_events(&mut self, event: AppEvent) -> color_eyre::Result<Option<Action>> {
+    /// * [`color_eyre::Result<Option<Action>>`] - An app event to be processed or none.
+    fn handle_app_events(&mut self, event: AppEvent) -> color_eyre::Result<Option<AppEvent>> {
         let _ = event; // to appease clippy
         Ok(None)
     }
@@ -100,8 +100,8 @@ pub trait Component {
     ///
     /// # Returns
     ///
-    /// * [`color_eyre::Result<Option<Action>>`] - An action to be processed or none.
-    fn handle_key_event(&mut self, key: KeyEvent) -> color_eyre::Result<Option<Action>> {
+    /// * [`color_eyre::Result<Option<Action>>`] - An app event to be processed or none.
+    fn handle_key_event(&mut self, key: KeyEvent) -> color_eyre::Result<Option<AppEvent>> {
         let _ = key; // to appease clippy
         Ok(None)
     }
@@ -114,7 +114,7 @@ pub trait Component {
     /// # Returns
     ///
     /// * [`color_eyre::Result<Option<Action>>`] - An action to be processed or none.
-    fn handle_mouse_event(&mut self, mouse: MouseEvent) -> color_eyre::Result<Option<Action>> {
+    fn handle_mouse_event(&mut self, mouse: MouseEvent) -> color_eyre::Result<Option<AppEvent>> {
         let _ = mouse; // to appease clippy
         Ok(None)
     }
@@ -126,10 +126,23 @@ pub trait Component {
     ///
     /// # Returns
     ///
-    /// * [`color_eyre::Result<Option<Action>>`] - An action to be processed or none.
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
+    /// * [`color_eyre::Result<Option<AppEvent>>`] - An app event to be processed or none.
+    fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
         let _ = action; // to appease clippy
         Ok(None)
+    }
+    /// Notify component when it comes in or out of focus.
+    ///
+    /// # Arguments
+    ///
+    /// * `focused` - Whether the component is focused
+    ///
+    /// # Returns
+    ///
+    /// * [`color_eyre::Result<()>`] - An Ok result or an error.
+    fn set_focus(&mut self, focused: bool) -> color_eyre::Result<()> {
+        let _ = focused;
+        Ok(())
     }
     /// Render the component on the screen. (REQUIRED)
     ///

@@ -70,5 +70,14 @@
       "right": "NavRight",
       "y": "Yank",
     },
+    "ViewDetail": {
+      "<Ctrl-c>": "Quit",
+      "<Ctrl-z>": "Suspend",
+      "k": "NavUp",
+      "j": "NavDown",
+      "up": "NavUp",
+      "down": "NavDown",
+      "esc": "Clear",
+    },
   }
 }

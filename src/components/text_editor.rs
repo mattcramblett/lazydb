@@ -8,7 +8,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::TextArea;
 
 use crate::{
-    action::Action, app::Mode, app_event::QueryTag, components::Component, config::Config,
+    action::Action, app_event::{AppEvent, QueryTag}, components::Component, config::Config,
     database::system_query::Query,
 };
 
@@ -67,34 +67,29 @@ impl<'a> TextEditor<'a> {
 }
 
 impl Component for TextEditor<'_> {
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<Action>> {
-        match action {
-            Action::ChangeMode(Mode::EditQuery) => self.focused = true,
-            Action::ChangeMode(_) => self.focused = false,
-            Action::ExecuteQuery(Query {
+    fn set_focus(&mut self, focused: bool) -> color_eyre::Result<()> {
+        self.focused = focused;
+        Ok(())
+    }
+
+    fn handle_app_events(&mut self, event: AppEvent) -> color_eyre::Result<Option<AppEvent>> {
+        if let AppEvent::QueryExecutionRequested(Query {
                 tag: QueryTag::InitialTable(_),
                 query,
                 ..
-            }) => {
+            }) = event {
                 self.internal.insert_newline();
                 self.internal.insert_str(query);
-            }
-            _ => {}
-        }
+            };
         Ok(None)
     }
 
-    fn handle_key_event(&mut self, key: KeyEvent) -> color_eyre::Result<Option<Action>> {
-        // Only handle arbitrary key events if the editor is in focus
-        if !self.focused {
-            return Ok(None);
-        }
-
+    fn handle_key_event(&mut self, key: KeyEvent) -> color_eyre::Result<Option<AppEvent>> {
         match key.code {
             // ctrl+r runs the query in the editor
             // TODO: make this keymap configurable
             KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
-                Ok(Some(Action::ExecuteQuery(Query {
+                Ok(Some(AppEvent::QueryExecutionRequested(Query {
                     query: self.query(),
                     tag: QueryTag::User,
                     binds: None,
