@@ -93,7 +93,10 @@ impl DataTable {
         let widths: Vec<Constraint> = if visible_cols == self.columns.len() {
             self.columns.iter().map(|_| Constraint::default()).collect()
         } else {
-            self.widths[col_range.clone()].iter().map(|len| Constraint::Length(*len)).collect()
+            self.widths[col_range.clone()]
+                .iter()
+                .map(|len| Constraint::Length(*len))
+                .collect()
         };
 
         let table = Table::default()

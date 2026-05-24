@@ -259,7 +259,10 @@ impl App {
         while let Ok(action) = self.action_rx.try_recv() {
             if action != Action::Tick && action != Action::Render {
                 debug!("{action:?}");
-                self.event_tx.send(AppEvent::UserMessage(MessageType::Debug, format!("Action: {:?}", action)))?;
+                self.event_tx.send(AppEvent::UserMessage(
+                    MessageType::Debug,
+                    format!("Action: {:?}", action),
+                ))?;
             }
             match action.clone() {
                 Action::Tick => {

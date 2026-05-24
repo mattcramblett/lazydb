@@ -8,7 +8,10 @@ use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::TextArea;
 
 use crate::{
-    action::Action, app_event::{AppEvent, QueryTag}, components::Component, config::Config,
+    action::Action,
+    app_event::{AppEvent, QueryTag},
+    components::Component,
+    config::Config,
     database::system_query::Query,
 };
 
@@ -74,13 +77,14 @@ impl Component for TextEditor<'_> {
 
     fn handle_app_events(&mut self, event: AppEvent) -> color_eyre::Result<Option<AppEvent>> {
         if let AppEvent::QueryExecutionRequested(Query {
-                tag: QueryTag::InitialTable(_),
-                query,
-                ..
-            }) = event {
-                self.internal.insert_newline();
-                self.internal.insert_str(query);
-            };
+            tag: QueryTag::InitialTable(_),
+            query,
+            ..
+        }) = event
+        {
+            self.internal.insert_newline();
+            self.internal.insert_str(query);
+        };
         Ok(None)
     }
 

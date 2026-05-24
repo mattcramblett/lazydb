@@ -47,7 +47,9 @@ impl Component for ConnectionMenu {
                 if let Some(idx) = self.list_state.selected()
                     && let Some(connection_name) = self.items().get(idx)
                 {
-                    return Ok(Some(AppEvent::DbConnectionRequested(connection_name.to_string())));
+                    return Ok(Some(AppEvent::DbConnectionRequested(
+                        connection_name.to_string(),
+                    )));
                 }
             }
             Action::NavDown => {

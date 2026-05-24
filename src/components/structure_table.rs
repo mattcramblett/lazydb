@@ -2,7 +2,12 @@ use arboard::Clipboard;
 use ratatui::prelude::Rect;
 
 use crate::{
-    action::Action, app::Mode, app_event::{AppEvent, QueryTag}, components::Component, config::Config, widgets::data_table::DataTable
+    action::Action,
+    app::Mode,
+    app_event::{AppEvent, QueryTag},
+    components::Component,
+    config::Config,
+    widgets::data_table::DataTable,
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -42,12 +47,8 @@ impl Component for StructureTable {
         match action {
             Action::NavDown => self.data_table.state.select_next(),
             Action::NavUp => self.data_table.state.select_previous(),
-            Action::NavLeft => {
-                self.data_table.state.select_previous_column()
-            }
-            Action::NavRight => {
-                self.data_table.state.select_next_column()
-            }
+            Action::NavLeft => self.data_table.state.select_previous_column(),
+            Action::NavRight => self.data_table.state.select_next_column(),
             Action::Yank => {
                 if let Ok(clipboard) = Clipboard::new() {
                     let mut clip = clipboard;

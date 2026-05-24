@@ -169,7 +169,11 @@ impl<'a> Component for SchemaList<'a> {
     ) -> color_eyre::Result<()> {
         let block = Block::bordered()
             .title("Schemas [alt+0]")
-            .style(Style::new().fg(if self.has_focus { Color::Cyan } else { Color::Blue }))
+            .style(Style::new().fg(if self.has_focus {
+                Color::Cyan
+            } else {
+                Color::Blue
+            }))
             .title_alignment(Alignment::Center)
             .border_type(if self.has_focus {
                 BorderType::Thick

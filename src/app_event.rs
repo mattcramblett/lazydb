@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
-use crate::{app::Mode, database::{
-    connection::{DbConnection, QueryResult},
-    system_query::{self, Table},
-}};
+use crate::{
+    app::Mode,
+    database::{
+        connection::{DbConnection, QueryResult},
+        system_query::{self, Table},
+    },
+};
 
 /// App events are global signals that can be produced and reacted upon by components, independent of
 /// current layout and do not require the component to be in focus.
