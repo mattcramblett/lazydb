@@ -33,10 +33,10 @@ impl Component for Messages {
             .border_type(BorderType::Plain);
 
         let items = self.message_history.iter().map(|(msg_type, msg)| {
-            let style = if matches!(msg_type, MessageType::Error) {
-                Color::Red
-            } else {
-                Color::Cyan
+            let style = match msg_type {
+                MessageType::Info => Color::Cyan,
+                MessageType::Error => Color::Red,
+                MessageType::Debug => Color::DarkGray,
             };
             Text::styled(msg, style)
         });
