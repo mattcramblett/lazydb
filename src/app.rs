@@ -119,13 +119,13 @@ impl App {
             .frame_rate(self.frame_rate);
         tui.enter()?;
 
-        for (_, component) in self.components.iter_mut() {
+        for component in self.components.values_mut() {
             component.register_action_handler(self.action_tx.clone())?;
         }
-        for (_, component) in self.components.iter_mut() {
+        for component in self.components.values_mut() {
             component.register_config_handler(self.config.clone())?;
         }
-        for (_, component) in self.components.iter_mut() {
+        for component in self.components.values_mut() {
             component.init(tui.size()?)?;
         }
 
@@ -369,7 +369,7 @@ impl App {
                 }
                 _ => {}
             }
-            for (_, component) in self.components.iter_mut() {
+            for component in self.components.values_mut() {
                 if let Some(app_event) = component.handle_app_events(app_event.clone())? {
                     self.event_tx.send(app_event)?
                 };
