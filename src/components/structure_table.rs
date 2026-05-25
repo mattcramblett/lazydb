@@ -1,4 +1,3 @@
-use arboard::Clipboard;
 use ratatui::prelude::Rect;
 
 use crate::{
@@ -26,14 +25,12 @@ impl Default for StructureTable {
         let mut data_table = DataTable::default();
         data_table.title = "Structure [alt+4]".to_string();
 
-        let mut def = Self {
+        Self {
             data_table,
             table_name: Default::default(),
             command_tx: Default::default(),
             config: Default::default(),
-        };
-        def.set_data(vec![], vec![]);
-        def
+        }
     }
 }
 
@@ -49,26 +46,21 @@ impl Component for StructureTable {
             Action::NavUp => self.data_table.state.select_previous(),
             Action::NavLeft => self.data_table.state.select_previous_column(),
             Action::NavRight => self.data_table.state.select_next_column(),
-            Action::Yank => {
-                if let Ok(clipboard) = Clipboard::new() {
-                    let mut clip = clipboard;
-                    if let Some((idx, col)) = self.data_table.state.selected_cell()
-                        && let Some(row) = self.data_table.rows.get(idx)
-                        && let Some(val) = row.get(col)
-                    {
-                        clip.set_text(val.clone().unwrap_or("NULL".to_string()))? // copy cell value
-                    } else if let Some(idx) = self.data_table.state.selected()
-                        && let Some(row) = self.data_table.rows.get(idx)
-                    {
-                        let row_str: String = row
-                            .iter()
-                            .map(|v| v.clone().unwrap_or(String::from("NULL")))
-                            .collect::<Vec<String>>()
-                            .join(" ");
-                        clip.set_text(row_str)?
-                    }
+            Action::Yank => self.data_table.yank_selection()?,
+            Action::Clear => self.data_table.clear_selection(),
+            Action::MakeSelection => {
+                if let Some(selection) = self.data_table.cell_selection() {
+                    return Ok(Some(AppEvent::CellSelected(selection)));
+                }
+                if let Some(row_selection) = self.data_table.row_selection() {
+                    return Ok(Some(AppEvent::RowSelected(
+                        self.data_table.columns.clone(),
+                        row_selection,
+                    )));
                 }
             }
+            Action::PageLeft => self.data_table.scroll_left(),
+            Action::PageRight => self.data_table.scroll_right(),
             _ => {}
         }
         Ok(None)
@@ -80,7 +72,7 @@ impl Component for StructureTable {
     ) -> color_eyre::Result<Option<AppEvent>> {
         if let AppEvent::QueryResultReturned(result, QueryTag::TableStructure(table)) = event {
             self.table_name = Some(table.name);
-            self.set_data(result.columns, result.rows);
+            self.data_table.set_data(result.columns, result.rows);
             return Ok(Some(AppEvent::ModeSwitched(Mode::ExploreStructure)));
         }
         Ok(None)
@@ -105,11 +97,5 @@ impl Component for StructureTable {
         );
         self.data_table.draw(frame, area)?;
         Ok(())
-    }
-}
-
-impl StructureTable {
-    fn set_data(&mut self, new_cols: Vec<String>, new_rows: Vec<Vec<Option<String>>>) {
-        self.data_table.set_data(new_cols, new_rows);
     }
 }

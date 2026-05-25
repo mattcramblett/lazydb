@@ -65,6 +65,7 @@
       "h": "NavLeft",
       "l": "NavRight",
       "up": "NavUp",
+      "enter": "MakeSelection",
       "down": "NavDown",
       "left": "NavLeft",
       "right": "NavRight",
