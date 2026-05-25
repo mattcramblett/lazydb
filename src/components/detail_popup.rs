@@ -1,8 +1,8 @@
 use ratatui::{
     layout::{Constraint, Flex, Layout},
-    style::{Color, Stylize},
+    style::{Color, Modifier, Stylize},
     text::Text,
-    widgets::{Block, Clear, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Clear, List, ListState, Padding, Paragraph, Wrap},
 };
 use tokio::sync::mpsc::UnboundedSender;
 use unicode_width::UnicodeWidthStr;
@@ -17,7 +17,7 @@ pub struct DetailPopup {
     row_content: Option<(Vec<String>, Vec<Option<String>>)>,
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
-    list_state: ListState,
+    selected_idx: Option<usize>,
 }
 
 impl Component for DetailPopup {
@@ -37,14 +37,24 @@ impl Component for DetailPopup {
             Action::Clear => {
                 self.row_content = None;
                 self.content = None;
-                self.list_state = ListState::default().with_selected(Some(0));
+                self.selected_idx = None;
                 return Ok(Some(AppEvent::ModeSwitched(Mode::ExploreResults)));
             }
             Action::NavDown => {
-                self.list_state.select_next();
+                if let Some(idx) = self.selected_idx
+                    && idx < self.content_len() - 1
+                {
+                    self.selected_idx = Some(idx + 1);
+                } else {
+                    self.selected_idx = Some(0);
+                }
             }
             Action::NavUp => {
-                self.list_state.select_previous();
+                if let Some(idx) = self.selected_idx
+                    && idx > 0
+                {
+                    self.selected_idx = Some(idx - 1);
+                }
             }
             _ => {}
         }
@@ -56,11 +66,13 @@ impl Component for DetailPopup {
             AppEvent::RowSelected(columns, row) => {
                 self.content = None;
                 self.row_content = Some((columns, row));
+                self.selected_idx = Some(0);
                 return Ok(None);
             }
             AppEvent::CellSelected(content) => {
                 self.row_content = None;
                 self.content = Some(content);
+                self.selected_idx = Some(0);
                 return Ok(None);
             }
             _ => {}
@@ -74,15 +86,19 @@ impl Component for DetailPopup {
         area: ratatui::prelude::Rect,
     ) -> color_eyre::Result<()> {
         if let Some(content) = &self.content {
-            let percent_y = 20;
-            let width = content.width() as u16 + 4;
-            let vertical = Layout::vertical([Constraint::Percentage(percent_y)]).flex(Flex::Center);
+            let width = content.width() as u16 + 8;
+            let vertical = Layout::vertical([Constraint::Min(1)]).flex(Flex::Center);
             let horizontal = Layout::horizontal([Constraint::Length(width)]).flex(Flex::Center);
             let [area] = vertical.areas(area);
             let [area] = horizontal.areas(area);
 
-            let block = Block::bordered().title("Value").style(Color::Cyan);
-            let text = Paragraph::new(content.as_str()).block(block);
+            let block = Block::bordered()
+                .title("Value")
+                .style(Color::Cyan)
+                .padding(Padding::uniform(2));
+            let text = Paragraph::new(content.as_str())
+                .block(block)
+                .wrap(Wrap { trim: false });
             frame.render_widget(Clear, area);
             frame.render_widget(text, area);
         } else if let Some((columns, row)) = &self.row_content {
@@ -106,13 +122,28 @@ impl Component for DetailPopup {
                 text.push_span(col.clone().bold().cyan());
                 text.push_span(": ");
                 text.push_span(display_val);
-                ListItem::new(text)
+                text
             });
 
-            let list = List::new(items).block(block);
+            let list = List::new(items)
+                .highlight_style(Modifier::REVERSED)
+                .highlight_symbol("▹ ")
+                .block(block);
+            let mut state = ListState::default().with_selected(self.selected_idx);
             frame.render_widget(Clear, area);
-            frame.render_stateful_widget(list, area, &mut self.list_state.clone());
+            frame.render_stateful_widget(list, area, &mut state);
         }
         Ok(())
+    }
+}
+
+impl DetailPopup {
+    pub fn content_len(&self) -> usize {
+        if self.content.is_some() {
+            return 1;
+        } else if let Some(row_content) = &self.row_content {
+            return row_content.0.len();
+        }
+        0
     }
 }
