@@ -74,7 +74,7 @@ pub enum ComponentId {
 }
 
 impl App {
-    pub fn new(tick_rate: f64, frame_rate: f64) -> color_eyre::Result<Self> {
+    pub fn new(tick_rate: f64, frame_rate: f64, debug: bool) -> color_eyre::Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let mut components: HashMap<ComponentId, Box<dyn Component>> = HashMap::new();
@@ -82,7 +82,10 @@ impl App {
         components.insert(ComponentId::ConnectionMenu, Box::new(ConnectionMenu::new()));
         components.insert(ComponentId::TextEditor, Box::new(TextEditor::new()));
         components.insert(ComponentId::ResultsTable, Box::new(ResultsTable::default()));
-        components.insert(ComponentId::Messages, Box::new(Messages::default()));
+        components.insert(
+            ComponentId::Messages,
+            Box::new(Messages::default().with_debug(debug)),
+        );
         components.insert(ComponentId::TableList, Box::new(TableList::default()));
         components.insert(ComponentId::SchemaList, Box::new(SchemaList::default()));
         components.insert(

@@ -18,6 +18,7 @@ pub struct Messages {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     message_history: Vec<(MessageType, String)>,
+    debug: bool,
 }
 
 impl Component for Messages {
@@ -59,7 +60,12 @@ impl Component for Messages {
             AppEvent::QueryExecutionRequested(query) if query.tag == QueryTag::User => {
                 self.add_message(MessageType::Info, "Running...".to_string())
             }
-            AppEvent::UserMessage(msg_type, msg) => self.add_message(msg_type, msg),
+            AppEvent::UserMessage(msg_type, msg) => {
+                if matches!(msg_type, MessageType::Debug) && !self.debug {
+                    return Ok(None);
+                }
+                self.add_message(msg_type, msg)
+            }
             _ => {}
         }
         Ok(None)
@@ -77,6 +83,11 @@ impl Component for Messages {
 }
 
 impl Messages {
+    pub fn with_debug(mut self, debug: bool) -> Self {
+        self.debug = debug;
+        self
+    }
+
     pub fn add_message(&mut self, message_type: MessageType, message: String) {
         if self.message_history.len() > 100 {
             self.message_history.remove(0);

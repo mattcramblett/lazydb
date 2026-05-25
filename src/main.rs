@@ -22,7 +22,7 @@ async fn main() -> color_eyre::Result<()> {
     crate::logging::init()?;
 
     let args = Cli::parse();
-    let mut app = App::new(args.tick_rate, args.frame_rate)?;
+    let mut app = App::new(args.tick_rate, args.frame_rate, args.debug)?;
     app.run().await?;
     Ok(())
 }

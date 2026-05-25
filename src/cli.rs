@@ -12,6 +12,10 @@ pub struct Cli {
     /// Frame rate, i.e. number of frames per second
     #[arg(short, long, value_name = "FLOAT", default_value_t = 60.0)]
     pub frame_rate: f64,
+
+    /// Whether to show debug messages
+    #[arg(short, long, value_name = "BOOLEAN", default_value_t = false)]
+    pub debug: bool,
 }
 
 const VERSION_MESSAGE: &str = concat!(
