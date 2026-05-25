@@ -1,3 +1,4 @@
+use arboard::Clipboard;
 use ratatui::{
     layout::{Constraint, Flex, Layout},
     style::{Color, Modifier, Stylize},
@@ -33,12 +34,24 @@ impl Component for DetailPopup {
 
     fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
         match action {
-            // TODO: yank, search
             Action::Clear => {
                 self.row_content = None;
                 self.content = None;
                 self.selected_idx = None;
                 return Ok(Some(AppEvent::ModeSwitched(Mode::ExploreResults)));
+            }
+            Action::Yank => {
+                if let Ok(clipboard) = Clipboard::new() {
+                    let mut clip = clipboard;
+                    if let Some(content) = &self.content {
+                        clip.set_text(content.clone())?;
+                    } else if let Some(row_content) = &self.row_content
+                        && let Some(idx) = self.selected_idx
+                        && let Some(row_val) = row_content.1.get(idx)
+                    {
+                        clip.set_text(row_val.clone().unwrap_or(String::from("NULL")))?;
+                    }
+                }
             }
             Action::NavDown => {
                 if let Some(idx) = self.selected_idx
