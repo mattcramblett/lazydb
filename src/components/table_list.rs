@@ -114,6 +114,17 @@ impl Component for TableList {
                     }
                     return Ok(None);
                 }
+                Action::ViewIndexes => {
+                    if let Some(selection) = self.selection() {
+                        return Ok(Some(AppEvent::QueryExecutionRequested(
+                            SystemQuery::query_for(QueryTag::TableIndexes(Table {
+                                schema: selection.0,
+                                name: selection.1,
+                            }))?,
+                        )));
+                    }
+                    return Ok(None);
+                }
                 Action::Yank => {
                     if let Ok(clipboard) = Clipboard::new()
                         && let Some(selection) = self.selection()

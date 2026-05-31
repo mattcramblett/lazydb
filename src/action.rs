@@ -16,6 +16,7 @@ pub enum Action {
     Help,
     MakeSelection,
     ViewStructure,
+    ViewIndexes,
     NavDown,
     NavUp,
     NavLeft,

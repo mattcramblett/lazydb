@@ -42,4 +42,5 @@ pub enum QueryTag {
     ListTables,
     InitialTable(Table),
     TableStructure(Table),
+    TableIndexes(Table),
 }

@@ -127,6 +127,43 @@ ORDER BY
                     tag,
                 })
             }
+            QueryTag::TableIndexes(table) => {
+                let query = String::from(
+                    "
+                    SELECT
+                      ix.relname AS index_name,
+                      upper(am.amname) AS index_algorithm,
+                      indisunique AS is_unique,
+                      pg_get_indexdef(indexrelid) AS index_definition,
+                      replace(regexp_replace(regexp_replace(regexp_replace(pg_get_indexdef(indexrelid), ' WHERE .+|INCLUDE .+', ''), ' WITH .+', ''), '.*\\((.*)\\)', '\\1'), ' ', '') AS column_name,
+                      CASE
+                        WHEN position(' WHERE ' IN pg_get_indexdef(indexrelid)) > 0 THEN regexp_replace(pg_get_indexdef(indexrelid), '.+WHERE ', '')
+                        WHEN position(' WITH ' IN pg_get_indexdef(indexrelid)) > 0 THEN regexp_replace(pg_get_indexdef(indexrelid), '.+WITH ', '')
+                        ELSE ''
+                      END AS condition,
+                      CASE
+                        WHEN position(' INCLUDE ' IN pg_get_indexdef(indexrelid)) > 0 THEN regexp_replace(pg_get_indexdef(indexrelid), '.+INCLUDE ', '')
+                        WHEN position(' WITH ' IN pg_get_indexdef(indexrelid)) > 0 THEN regexp_replace(pg_get_indexdef(indexrelid), '.+WITH ', '')
+                        ELSE ''
+                      END AS include,
+                      pg_catalog.obj_description (i.indexrelid, 'pg_class') AS comment
+                    FROM
+                      pg_index i
+                      JOIN pg_class t ON t.oid = i.indrelid
+                      JOIN pg_class ix ON ix.oid = i.indexrelid
+                      JOIN pg_namespace n ON t.relnamespace = n.oid
+                      JOIN pg_am AS am ON ix.relam = am.oid
+                    WHERE
+                      t.relname = $2
+                      AND n.nspname = $1;
+                    ",
+                );
+                Ok(Query {
+                    query,
+                    binds: Some(vec![table.schema, table.name]),
+                    tag,
+                })
+            }
             QueryTag::User => {
                 // NOTE: special case, not a system query. Explictly matching this case to force
                 // matching against all meaningful variants.

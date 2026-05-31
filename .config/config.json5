@@ -44,6 +44,7 @@
       "/": "Search",
       "esc": "Clear",
       "s": "ViewStructure",
+      "i": "ViewIndexes",
     },
     "ExploreSchemas": {
       "<Ctrl-c>": "Quit",
@@ -58,6 +59,20 @@
       "esc": "Clear",
     },
     "ExploreStructure": {
+      "<Ctrl-c>": "Quit",
+      "<Ctrl-z>": "Suspend",
+      "k": "NavUp",
+      "j": "NavDown",
+      "h": "NavLeft",
+      "l": "NavRight",
+      "up": "NavUp",
+      "enter": "MakeSelection",
+      "down": "NavDown",
+      "left": "NavLeft",
+      "right": "NavRight",
+      "y": "Yank",
+    },
+    "ExploreIndexes": {
       "<Ctrl-c>": "Quit",
       "<Ctrl-z>": "Suspend",
       "k": "NavUp",

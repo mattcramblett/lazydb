@@ -10,9 +10,7 @@ use crate::{
     action::Action,
     app_event::{AppEvent, MessageType, QueryTag},
     components::{
-        Component, connection_menu::ConnectionMenu, detail_popup::DetailPopup, messages::Messages,
-        results_table::ResultsTable, schema_list::SchemaList, structure_table::StructureTable,
-        table_list::TableList, text_editor::TextEditor, title::Title,
+        Component, connection_menu::ConnectionMenu, detail_popup::DetailPopup, indexes_table::IndexesTable, messages::Messages, results_table::ResultsTable, schema_list::SchemaList, structure_table::StructureTable, table_list::TableList, text_editor::TextEditor, title::Title
     },
     config::Config,
     database::connection::DbConnection,
@@ -56,6 +54,8 @@ pub enum Mode {
     ExploreSchemas,
     /// Navigate to the table's structure
     ExploreStructure,
+    /// Navigate to the table's indexes
+    ExploreIndexes,
     /// View a focused detail of a row or cell
     ViewDetail,
 }
@@ -70,6 +70,7 @@ pub enum ComponentId {
     TableList,
     SchemaList,
     StructureTable,
+    IndexesTable,
     DetailPopup,
 }
 
@@ -91,6 +92,10 @@ impl App {
         components.insert(
             ComponentId::StructureTable,
             Box::new(StructureTable::default()),
+        );
+        components.insert(
+            ComponentId::IndexesTable,
+            Box::new(IndexesTable::default()),
         );
         components.insert(ComponentId::DetailPopup, Box::new(DetailPopup::default()));
         let render_plan = RenderPlan::default();
@@ -165,6 +170,7 @@ impl App {
             Mode::EditQuery => HashSet::from([ComponentId::TextEditor]),
             Mode::ExploreResults => HashSet::from([ComponentId::ResultsTable]),
             Mode::ExploreStructure => HashSet::from([ComponentId::StructureTable]),
+            Mode::ExploreIndexes => HashSet::from([ComponentId::IndexesTable]),
             Mode::ViewDetail => HashSet::from([ComponentId::DetailPopup]),
         };
         self.event_tx.send(AppEvent::UserMessage(
@@ -249,6 +255,10 @@ impl App {
                         KeyCode::Char('4') if key.modifiers == KeyModifiers::ALT => {
                             self.event_tx
                                 .send(AppEvent::ModeSwitched(Mode::ExploreStructure))?;
+                        }
+                        KeyCode::Char('5') if key.modifiers == KeyModifiers::ALT => {
+                            self.event_tx
+                                .send(AppEvent::ModeSwitched(Mode::ExploreIndexes))?;
                         }
                         _ => {}
                     }

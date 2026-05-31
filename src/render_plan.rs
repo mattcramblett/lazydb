@@ -9,6 +9,7 @@ impl RenderPlan {
     pub fn compute_layouts(&self, mode: Mode, zoom: bool, root: Rect) -> Vec<(ComponentId, Rect)> {
         let visible_table = match mode {
             Mode::ExploreStructure => ComponentId::StructureTable,
+            Mode::ExploreIndexes => ComponentId::IndexesTable,
             _ => ComponentId::ResultsTable,
         };
 
@@ -43,6 +44,10 @@ impl RenderPlan {
             Mode::ExploreStructure if zoom => {
                 let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
                 return vec![(ComponentId::StructureTable, layout[0])];
+            }
+            Mode::ExploreIndexes if zoom => {
+                let layout = Layout::horizontal(vec![Constraint::Fill(100)]).split(root);
+                return vec![(ComponentId::IndexesTable, layout[0])];
             }
             _ => {}
         }

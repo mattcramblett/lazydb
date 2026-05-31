@@ -11,7 +11,7 @@ use crate::{
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug)]
-pub struct StructureTable {
+pub struct IndexesTable {
     /// Internal table widget
     data_table: DataTable,
     /// Name of table being displayed, if any
@@ -20,10 +20,10 @@ pub struct StructureTable {
     config: Config,
 }
 
-impl Default for StructureTable {
+impl Default for IndexesTable {
     fn default() -> Self {
         let mut data_table = DataTable::default();
-        data_table.title = "Structure [alt+4]".to_string();
+        data_table.title = "Indexes [alt+5]".to_string();
 
         Self {
             data_table,
@@ -34,7 +34,7 @@ impl Default for StructureTable {
     }
 }
 
-impl Component for StructureTable {
+impl Component for IndexesTable {
     fn set_focus(&mut self, focused: bool) -> color_eyre::Result<()> {
         self.data_table.focused = focused;
         Ok(())
@@ -70,10 +70,10 @@ impl Component for StructureTable {
         &mut self,
         event: crate::app_event::AppEvent,
     ) -> color_eyre::Result<Option<AppEvent>> {
-        if let AppEvent::QueryResultReturned(result, QueryTag::TableStructure(table)) = event {
+        if let AppEvent::QueryResultReturned(result, QueryTag::TableIndexes(table)) = event {
             self.table_name = Some(table.name);
             self.data_table.set_data(result.columns, result.rows);
-            return Ok(Some(AppEvent::ModeSwitched(Mode::ExploreStructure)));
+            return Ok(Some(AppEvent::ModeSwitched(Mode::ExploreIndexes)));
         }
         Ok(None)
     }
@@ -91,10 +91,10 @@ impl Component for StructureTable {
     fn draw(&mut self, frame: &mut ratatui::Frame, area: Rect) -> color_eyre::Result<()> {
         // TODO: make placeholder text dynamic based on Config
         self.data_table.title = format!(
-            "Structure - {} [alt+4]",
+            "Indexes - {} [alt+5]",
             self.table_name
                 .clone()
-                .unwrap_or("Select a table and press 's'".to_string())
+                .unwrap_or("Select a table and press 'i'".to_string())
         );
         self.data_table.draw(frame, area)?;
         Ok(())
