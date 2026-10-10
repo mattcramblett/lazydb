@@ -1,4 +1,8 @@
-use crate::{action::Action, app_event::AppEvent, components::{Component, data_table::DataTable}};
+use crate::{
+    action::Action,
+    app_event::AppEvent,
+    components::{Component, data_table::DataTable},
+};
 
 pub trait TableComponent: Component {
     /// Accessor to internal table
