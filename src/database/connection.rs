@@ -171,7 +171,7 @@ impl DbConnection {
         } else if let Ok(val) = row.try_get::<Option<String>, _>(index) {
             Ok(val)
         } else {
-            bail!(format!("Unsupported type: {}", col.type_info()))
+            bail!(format!("Unsupported type: {}", col.type_info()));
         }
     }
 }

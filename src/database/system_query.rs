@@ -56,7 +56,7 @@ ORDER BY
                     bail!(format!(
                         "Invalid table name or schema found: {}.{}",
                         table.schema, table.name
-                    ))
+                    ));
                 }
                 let quoted = format!(
                     "\"{}\".\"{}\"",
