@@ -9,11 +9,11 @@ use crate::{action::Action, app_event::AppEvent, config::Config, tui::Event};
 
 pub mod connection_menu;
 pub mod detail_popup;
+pub mod indexes_table;
 pub mod messages;
 pub mod results_table;
 pub mod schema_list;
 pub mod structure_table;
-pub mod indexes_table;
 pub mod table_list;
 pub mod text_editor;
 pub mod title;

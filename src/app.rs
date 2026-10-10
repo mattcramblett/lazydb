@@ -10,7 +10,10 @@ use crate::{
     action::Action,
     app_event::{AppEvent, MessageType, QueryTag},
     components::{
-        Component, connection_menu::ConnectionMenu, detail_popup::DetailPopup, indexes_table::IndexesTable, messages::Messages, results_table::ResultsTable, schema_list::SchemaList, structure_table::StructureTable, table_list::TableList, text_editor::TextEditor, title::Title
+        Component, connection_menu::ConnectionMenu, detail_popup::DetailPopup,
+        indexes_table::IndexesTable, messages::Messages, results_table::ResultsTable,
+        schema_list::SchemaList, structure_table::StructureTable, table_list::TableList,
+        text_editor::TextEditor, title::Title,
     },
     config::Config,
     database::connection::DbConnection,
@@ -93,10 +96,7 @@ impl App {
             ComponentId::StructureTable,
             Box::new(StructureTable::default()),
         );
-        components.insert(
-            ComponentId::IndexesTable,
-            Box::new(IndexesTable::default()),
-        );
+        components.insert(ComponentId::IndexesTable, Box::new(IndexesTable::default()));
         components.insert(ComponentId::DetailPopup, Box::new(DetailPopup::default()));
         let render_plan = RenderPlan::default();
 
