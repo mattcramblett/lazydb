@@ -28,7 +28,7 @@ pub struct App {
     components: HashMap<ComponentId, Box<dyn Component>>,
     focused_components: HashSet<ComponentId>,
     render_plan: RenderPlan,
-    mode: Mode,
+    mode_history: Vec<Mode>,
     zoom: bool,
     should_quit: bool,
     should_suspend: bool,
@@ -105,7 +105,7 @@ impl App {
             frame_rate,
             components,
             render_plan,
-            mode: Mode::default(),
+            mode_history: vec![Mode::default()],
             focused_components: HashSet::from([ComponentId::ConnectionMenu]),
             zoom: false,
             should_quit: false,
@@ -118,6 +118,10 @@ impl App {
             event_tx,
             event_rx,
         })
+    }
+
+    pub fn mode(&self) -> Mode {
+        self.mode_history.last().cloned().unwrap_or(Mode::default())
     }
 
     pub async fn run(&mut self) -> color_eyre::Result<()> {
@@ -160,8 +164,8 @@ impl App {
     fn switch_mode(&mut self, mode: Mode) -> color_eyre::Result<()> {
         // Zoomed is toggled by pressing the same Mode keymap while already
         // actively in that mode. Switching to a new mode defaults to not zoomed.
-        let zoom = self.mode == mode && !self.zoom;
-        self.mode = mode;
+        let zoom = self.mode() == mode && !self.zoom;
+        self.mode_history.push(mode);
         self.zoom = zoom;
         self.focused_components = match mode {
             Mode::ConnectionMenu => HashSet::from([ComponentId::ConnectionMenu]),
@@ -215,7 +219,7 @@ impl App {
 
     fn handle_key_event(&mut self, key: KeyEvent) -> color_eyre::Result<()> {
         let action_tx = self.action_tx.clone();
-        let Some(keymap) = self.config.keybindings.0.get(&self.mode) else {
+        let Some(keymap) = self.config.keybindings.0.get(&self.mode()) else {
             return Ok(());
         };
         match keymap.get(&vec![key]) {
@@ -305,6 +309,9 @@ impl App {
         while let Ok(app_event) = self.event_rx.try_recv() {
             match app_event.clone() {
                 AppEvent::ModeSwitched(mode) => self.switch_mode(mode)?,
+                AppEvent::ModeCleared => {
+                    self.mode_history.pop();
+                }
                 AppEvent::RowSelected(_, _) => self
                     .event_tx
                     .send(AppEvent::ModeSwitched(Mode::ViewDetail))?,
@@ -401,7 +408,7 @@ impl App {
         tui.draw(|frame| {
             let layouts = self
                 .render_plan
-                .compute_layouts(self.mode, self.zoom, frame.area());
+                .compute_layouts(self.mode(), self.zoom, frame.area());
 
             for (comp_id, area) in layouts.iter() {
                 if let Some(comp) = self.components.get_mut(comp_id) {
@@ -419,7 +426,7 @@ impl App {
             }
 
             // Draw popups so they render outside of the standard layout.
-            if matches!(self.mode, Mode::ViewDetail)
+            if matches!(self.mode(), Mode::ViewDetail)
                 && let Some(popup) = self.components.get_mut(&ComponentId::DetailPopup)
                 && let Err(err) = popup.draw(frame, frame.area())
             {

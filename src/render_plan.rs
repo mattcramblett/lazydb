@@ -2,15 +2,31 @@ use ratatui::layout::{Constraint, Layout, Rect};
 
 use crate::app::{ComponentId, Mode};
 
-#[derive(Clone, Default)]
-pub struct RenderPlan {}
+#[derive(Clone)]
+pub struct RenderPlan {
+    visible_table: ComponentId,
+}
+
+impl Default for RenderPlan {
+    fn default() -> Self {
+        Self {
+            visible_table: ComponentId::ResultsTable,
+        }
+    }
+}
 
 impl RenderPlan {
-    pub fn compute_layouts(&self, mode: Mode, zoom: bool, root: Rect) -> Vec<(ComponentId, Rect)> {
-        let visible_table = match mode {
+    pub fn compute_layouts(
+        &mut self,
+        mode: Mode,
+        zoom: bool,
+        root: Rect,
+    ) -> Vec<(ComponentId, Rect)> {
+        self.visible_table = match mode {
+            Mode::ExploreResults => ComponentId::ResultsTable,
             Mode::ExploreStructure => ComponentId::StructureTable,
             Mode::ExploreIndexes => ComponentId::IndexesTable,
-            _ => ComponentId::ResultsTable,
+            _ => self.visible_table,
         };
 
         match mode {
@@ -71,7 +87,7 @@ impl RenderPlan {
         vec![
             (sidebar_comp, outer_layout[0]),
             (ComponentId::TextEditor, inner_layout[0]),
-            (visible_table, inner_layout[1]),
+            (self.visible_table, inner_layout[1]),
             (ComponentId::Messages, inner_layout[2]),
         ]
     }

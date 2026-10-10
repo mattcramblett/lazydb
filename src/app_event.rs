@@ -16,6 +16,7 @@ use crate::{
 #[derive(Clone)]
 pub enum AppEvent {
     ModeSwitched(Mode),
+    ModeCleared,
     DbConnectionRequested(String),
     DbConnectionEstablished(DbConnection),
     SchemaChangeRequested(String),

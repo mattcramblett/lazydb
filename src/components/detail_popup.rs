@@ -8,9 +8,7 @@ use ratatui::{
 use tokio::sync::mpsc::UnboundedSender;
 use unicode_width::UnicodeWidthStr;
 
-use crate::{
-    action::Action, app::Mode, app_event::AppEvent, components::Component, config::Config,
-};
+use crate::{action::Action, app_event::AppEvent, components::Component, config::Config};
 
 #[derive(Default)]
 pub struct DetailPopup {
@@ -38,7 +36,7 @@ impl Component for DetailPopup {
                 self.row_content = None;
                 self.content = None;
                 self.selected_idx = None;
-                return Ok(Some(AppEvent::ModeSwitched(Mode::ExploreResults)));
+                return Ok(Some(AppEvent::ModeCleared));
             }
             Action::Yank => {
                 if let Ok(clipboard) = Clipboard::new() {
