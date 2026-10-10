@@ -4,9 +4,8 @@ use crate::{
     action::Action,
     app::Mode,
     app_event::{AppEvent, QueryTag},
-    components::Component,
+    components::{Component, data_table::DataTable},
     config::Config,
-    widgets::data_table::DataTable,
 };
 use tokio::sync::mpsc::UnboundedSender;
 

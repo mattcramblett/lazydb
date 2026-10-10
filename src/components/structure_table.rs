@@ -6,7 +6,7 @@ use crate::{
     app_event::{AppEvent, QueryTag},
     components::Component,
     config::Config,
-    widgets::data_table::DataTable,
+    components::data_table::DataTable,
 };
 use tokio::sync::mpsc::UnboundedSender;
 

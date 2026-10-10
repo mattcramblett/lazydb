@@ -3,9 +3,8 @@ use ratatui::prelude::Rect;
 use crate::{
     action::Action,
     app_event::{AppEvent, QueryTag},
-    components::Component,
+    components::{Component, data_table::DataTable},
     config::Config,
-    widgets::data_table::DataTable,
 };
 use tokio::sync::mpsc::UnboundedSender;
 

@@ -14,7 +14,6 @@ mod errors;
 mod logging;
 mod render_plan;
 mod tui;
-mod widgets;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
