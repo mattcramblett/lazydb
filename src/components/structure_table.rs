@@ -4,9 +4,8 @@ use crate::{
     action::Action,
     app::Mode,
     app_event::{AppEvent, QueryTag},
-    components::Component,
+    components::{Component, data_table::DataTable, table_component::TableComponent},
     config::Config,
-    components::data_table::DataTable,
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -34,36 +33,19 @@ impl Default for StructureTable {
     }
 }
 
+impl TableComponent for StructureTable {
+    fn table(&mut self) -> &mut DataTable {
+        &mut self.data_table
+    }
+}
+
 impl Component for StructureTable {
-    fn set_focus(&mut self, focused: bool) -> color_eyre::Result<()> {
-        self.data_table.focused = focused;
-        Ok(())
+    fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
+        self.default_update(action)
     }
 
-    fn update(&mut self, action: Action) -> color_eyre::Result<Option<AppEvent>> {
-        match action {
-            Action::NavDown => self.data_table.state.select_next(),
-            Action::NavUp => self.data_table.state.select_previous(),
-            Action::NavLeft => self.data_table.state.select_previous_column(),
-            Action::NavRight => self.data_table.state.select_next_column(),
-            Action::Yank => self.data_table.yank_selection()?,
-            Action::Clear => self.data_table.clear_selection(),
-            Action::MakeSelection => {
-                if let Some(selection) = self.data_table.cell_selection() {
-                    return Ok(Some(AppEvent::CellSelected(selection)));
-                }
-                if let Some(row_selection) = self.data_table.row_selection() {
-                    return Ok(Some(AppEvent::RowSelected(
-                        self.data_table.columns.clone(),
-                        row_selection,
-                    )));
-                }
-            }
-            Action::PageLeft => self.data_table.scroll_left(),
-            Action::PageRight => self.data_table.scroll_right(),
-            _ => {}
-        }
-        Ok(None)
+    fn set_focus(&mut self, focused: bool) -> color_eyre::Result<()> {
+        self.default_set_focus(focused)
     }
 
     fn handle_app_events(
