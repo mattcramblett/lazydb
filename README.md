@@ -4,6 +4,8 @@
 
 Terminal UI for database management. Currently in development.
 
+<img width="1717" height="1017" alt="lazydb-preview" src="https://github.com/user-attachments/assets/9e1ea794-1873-41db-96f7-ea96c8366631" />
+
 ## Sample data
 For development, I'm using a local postgres container with some seeded data in order to test the UI.
 ```bash
