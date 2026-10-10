@@ -164,9 +164,12 @@ impl App {
     fn switch_mode(&mut self, mode: Mode) -> color_eyre::Result<()> {
         // Zoomed is toggled by pressing the same Mode keymap while already
         // actively in that mode. Switching to a new mode defaults to not zoomed.
-        let zoom = self.mode() == mode && !self.zoom;
-        self.mode_history.push(mode);
-        self.zoom = zoom;
+        let prev_mode = self.mode_history.last().cloned();
+        let is_same = prev_mode.is_some() && prev_mode.unwrap() == mode;
+        if !is_same {
+            self.mode_history.push(mode);
+        }
+        self.zoom = is_same && !self.zoom;
         self.focused_components = match mode {
             Mode::ConnectionMenu => HashSet::from([ComponentId::ConnectionMenu]),
             Mode::ExploreSchemas => HashSet::from([ComponentId::SchemaList]),
@@ -310,7 +313,9 @@ impl App {
             match app_event.clone() {
                 AppEvent::ModeSwitched(mode) => self.switch_mode(mode)?,
                 AppEvent::ModeCleared => {
-                    self.mode_history.pop();
+                    self.mode_history.pop(); // Clear current mode, if any
+                    let prev_mode = self.mode_history.pop(); // Grab the mode to reset to, if any
+                    self.switch_mode(prev_mode.unwrap_or_default())?
                 }
                 AppEvent::RowSelected(_, _) => self
                     .event_tx
