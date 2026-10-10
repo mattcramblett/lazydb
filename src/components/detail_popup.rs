@@ -53,6 +53,7 @@ impl Component for DetailPopup {
             }
             Action::NavDown => {
                 if let Some(idx) = self.selected_idx
+                    && self.content_len() > 0
                     && idx < self.content_len() - 1
                 {
                     self.selected_idx = Some(idx + 1);
